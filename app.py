@@ -545,7 +545,7 @@ def seed_from_excel():
                 db.session.add(Store(name=name))
 
         rows_data = []
-        for row in ws.iter_rows(min_row=4, min_col=mc, max_col=mc + 15, values_only=True):
+        for row in ws.iter_rows(min_row=5, min_col=mc, max_col=mc + 15, values_only=True):
             vals = list(row)
             u = str(vals[7]).strip() if len(vals) > 7 and vals[7] else ''
             w = str(vals[8]).strip() if len(vals) > 8 and vals[8] else ''
