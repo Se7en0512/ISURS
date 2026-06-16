@@ -79,6 +79,7 @@ def inject_globals():
         units=Unit.query.order_by(Unit.name).all(),
         sections=Section.query.order_by(Section.name).all(),
         weeks=Week.query.order_by(Week.week_number).all(),
+        wards=Ward.query.order_by(Ward.name).all(),
         current_year=datetime.now().year,
         now=datetime.now,
         search_q=request.args.get('q', '')
@@ -183,19 +184,35 @@ def import_items():
         return redirect(url_for('items'))
     wb = openpyxl.load_workbook(file)
     ws = wb['Master List2'] if 'Master List2' in wb.sheetnames else wb.active
+
+    code_idx = None
+    name_idx = None
+    store_idx = None
+    data_start = 1
+    for row in ws.iter_rows(min_row=1, max_row=5, values_only=True):
+        vals = [str(v).strip().lower() if v else '' for v in row]
+        if 'code' in vals:
+            code_idx = vals.index('code')
+            name_idx = vals.index('item') if 'item' in vals else None
+            store_idx = vals.index('store') if 'store' in vals else None
+            data_start = data_start + 1
+            break
+        data_start += 1
+    if code_idx is None:
+        if ws.min_column == 1:
+            code_idx, name_idx, store_idx = 2, 3, 4
+        else:
+            code_idx, name_idx, store_idx = 0, 1, 2
+        data_start = ws.min_row
+
     count = 0
-    for row in ws.iter_rows(min_row=5, values_only=True):
+    for row in ws.iter_rows(min_row=data_start, values_only=True):
         vals = [str(v).strip() if v is not None else '' for v in row]
-        if len(vals) < 3:
+        if len(vals) <= max(code_idx, name_idx or 0, store_idx or 0):
             continue
-        code = vals[2] if len(vals) > 2 else ''
-        name = vals[3] if len(vals) > 3 else ''
-        store_name = vals[4] if len(vals) > 4 else ''
-        if not code and not name and not store_name:
-            continue
-        code = code or vals[0]
-        name = name or vals[1]
-        store_name = store_name or vals[2]
+        code = vals[code_idx]
+        name = vals[name_idx] if name_idx is not None and len(vals) > name_idx else ''
+        store_name = vals[store_idx] if store_idx is not None and len(vals) > store_idx else ''
         if not code or not name or not store_name:
             continue
         store = Store.query.filter_by(name=store_name).first()
@@ -260,34 +277,61 @@ def import_reports():
     try:
         wb = openpyxl.load_workbook(file)
         ws = wb['Report'] if 'Report' in wb.sheetnames else wb.active
+
+        header = None
+        header_row = 0
+        for row in ws.iter_rows(min_row=1, max_row=5, values_only=True):
+            header_row += 1
+            vals = [str(v).strip().lower() if v else '' for v in row]
+            if 'code' in vals:
+                header = vals
+                break
+        if not header:
+            flash('Could not find header row with "Code" column in Report sheet', 'danger')
+            return redirect(url_for('reports'))
+        try:
+            code_idx = header.index('code')
+            status_idx = header.index('status')
+        except ValueError as e:
+            flash(f'Missing required column in Report sheet: {e}', 'danger')
+            return redirect(url_for('reports'))
+        name_idx = header.index('item') if 'item' in header else None
+        store_idx = header.index('store') if 'store' in header else None
+        week_idx = header.index('week') if 'week' in header else None
+        unit_idx = header.index('unit') if 'unit' in header else None
+        ward_idx = header.index('ward') if 'ward' in header else None
+        section_idx = header.index('section') if 'section' in header else None
+
         count = 0
         errors = []
-        for i, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
+        for i, row in enumerate(ws.iter_rows(min_row=header_row + 1, values_only=True), start=header_row + 1):
             vals = [str(v).strip() if v is not None else '' for v in row]
-            if len(vals) < 3:
+            if len(vals) <= max(code_idx, status_idx):
                 continue
-            section_name = vals[2] if len(vals) > 2 else ''
-            unit_name = vals[3] if len(vals) > 3 else ''
-            ward_name = vals[4] if len(vals) > 4 else ''
-            code = vals[5] if len(vals) > 5 else ''
-            item_name = vals[6] if len(vals) > 6 else ''
-            store_name = vals[7] if len(vals) > 7 else ''
-            week_col = vals[8] if len(vals) > 8 else ''
-            week_num = vals[9] if len(vals) > 9 else ''
-            status = vals[10] if len(vals) > 10 else ''
-            if not code and not status:
+            code = vals[code_idx]
+            status_raw = vals[status_idx]
+            if not code or not status_raw:
                 continue
-            if not code and vals:
-                code = vals[3] if len(vals) > 3 else code
-            if not status and len(vals) > 8:
-                status = vals[len(vals)-1]
+            section_name = vals[section_idx] if section_idx is not None and len(vals) > section_idx else ''
+            unit_name = vals[unit_idx] if unit_idx is not None and len(vals) > unit_idx else ''
+            ward_name = vals[ward_idx] if ward_idx is not None and len(vals) > ward_idx else ''
+            item_name = vals[name_idx] if name_idx is not None and len(vals) > name_idx else ''
+            store_name = vals[store_idx] if store_idx is not None and len(vals) > store_idx else ''
+            week_raw = vals[week_idx] if week_idx is not None and len(vals) > week_idx else ''
             item = Item.query.filter_by(code=code).first()
             if not item:
                 errors.append(f'Row {i}: Item code "{code}" not found')
                 continue
-            week = Week.query.filter_by(week_number=int(week_num)).first() if week_num else None
+            import re
+            nums = re.findall(r'\d+', str(week_raw))
+            week_num = int(nums[0]) if nums else None
+            week = Week.query.filter_by(week_number=week_num).first() if week_num else None
+            if not week and week_num:
+                week = Week(week_number=week_num, date_range=str(week_raw))
+                db.session.add(week)
+                db.session.commit()
             if not week:
-                errors.append(f'Row {i}: Week {week_num} not found')
+                errors.append(f'Row {i}: Week not found (value: {week_raw})')
                 continue
             unit = Unit.query.filter_by(name=unit_name).first() if unit_name else None
             ward = Ward.query.filter_by(name=ward_name).first() if ward_name else None
@@ -305,7 +349,7 @@ def import_reports():
                 section = Section(name=section_name)
                 db.session.add(section)
                 db.session.commit()
-            s = 'Shortage' if status.lower() == 'shortage' else 'Not available'
+            s = 'Shortage' if status_raw.lower() == 'shortage' else 'Not available'
             report = Report(
                 item_id=item.id, week_id=week.id,
                 unit_id=unit.id if unit else 1,
@@ -509,6 +553,20 @@ def seed_from_excel():
         db.session.commit()
 
     flash('Reference data seeded from Excel', 'success')
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/clear', methods=['POST'])
+def clear_data():
+    Report.query.delete()
+    Item.query.delete()
+    Store.query.delete()
+    Week.query.delete()
+    Unit.query.delete()
+    Ward.query.delete()
+    Section.query.delete()
+    db.session.commit()
+    flash('All data cleared', 'success')
     return redirect(url_for('settings'))
 
 
