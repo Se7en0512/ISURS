@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#cce5ff"/>
+    </linearGradient>
+  </defs>
+  <text x="2" y="32" font-family="Georgia,Times New Roman,serif" font-size="26" font-weight="700" fill="url(#lg)" letter-spacing="3">ISURS</text>
+  <path d="M108 28 Q112 20 116 28 Q120 36 124 28 Q128 20 132 28" stroke="#ffc107" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="138" cy="28" r="4" fill="rgba(255,255,255,.2)" stroke="#fff" stroke-width="1.5"/>
+</svg>

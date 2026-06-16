@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">ISURS Dashboard</h2>
+        <p class="text-muted mb-0">Item Shortage & Unavailability Monitoring</p>
+    </div>
+    <div class="no-print">
+      <a href="{{ url_for('export_reports') }}" class="btn btn-outline-success btn-sm">Export Excel</a>
+      <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print Dashboard</button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card primary">
+            <div class="stat-num">{{ total_items }}</div>
+            <div class="stat-label">Total Items</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card danger">
+            <div class="stat-num">{{ shortage_count }}</div>
+            <div class="stat-label">Shortages</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card warning">
+            <div class="stat-num">{{ una_count }}</div>
+            <div class="stat-label">Not Available</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card info">
+            <div class="stat-num">{{ total_reports }}</div>
+            <div class="stat-label">Total Reports</div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Reports by Store</div>
+            <div class="card-body">
+                <canvas id="chartByStore" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Reports by Week</div>
+            <div class="card-body">
+                <canvas id="chartByWeek" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Recent Reports</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Store</th>
+                            <th>Unit</th>
+                            <th>Ward</th>
+                            <th>Status</th>
+                            <th>Week</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recent_reports %}
+                        <tr>
+                            <td>{{ r.item.code }} - {{ r.item.name }}</td>
+                            <td>{{ r.item.store.name }}</td>
+                            <td>{{ r.unit.name }}</td>
+                            <td>{{ r.ward.name }}</td>
+                            <td>
+                                {% if r.status == 'Shortage' %}
+                                    <span class="badge bg-danger">Shortage</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Not Available</span>
+                                {% endif %}
+                            </td>
+                            <td>Week {{ r.week.week_number }}</td>
+                            <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-center text-muted py-3">No reports yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const storeLabels = {{ shortage_by_store|map(attribute=0)|list|tojson }};
+const storeShortage = {{ shortage_by_store|map(attribute=1)|list|tojson }};
+const storeUna = [];
+{% for s in una_by_store %}
+storeUna.push({{ s[1] }});
+{% endfor %}
+
+new Chart(document.getElementById('chartByStore'), {
+    type: 'bar',
+    data: {
+        labels: storeLabels,
+        datasets: [
+            { label: 'Shortage', data: storeShortage, backgroundColor: '#dc3545' },
+            { label: 'Not Available', data: storeUna, backgroundColor: '#ffc107' }
+        ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+});
+
+const weekLabels = {{ shortage_by_week|map(attribute=1)|list|tojson }};
+const weekShortage = {{ shortage_by_week|map(attribute=2)|list|tojson }};
+const weekUna = [];
+{% for w in una_by_week %}
+weekUna.push({{ w[2] }});
+{% endfor %}
+
+new Chart(document.getElementById('chartByWeek'), {
+    type: 'line',
+    data: {
+        labels: weekLabels,
+        datasets: [
+            { label: 'Shortage', data: weekShortage, borderColor: '#dc3545', tension: 0.3, fill: false },
+            { label: 'Not Available', data: weekUna, borderColor: '#ffc107', tension: 0.3, fill: false }
+        ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+});
+</script>
+{% endblock %}

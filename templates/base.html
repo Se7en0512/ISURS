@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISURS - Item Shortage & Unavailability Reporting System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="d-flex">
+  <nav class="sidebar" aria-label="Main navigation">
+    <div class="logo-wrap">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="ISURS">
+    </div>
+    <div class="nav-wrap">
+      <form action="{{ url_for('search') }}" method="GET" class="mb-2 no-print" role="search">
+        <input name="q" class="form-control form-control-sm" placeholder="Search items..." aria-label="Search" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15);color:#fff;font-size:.8rem" value="{{ search_q }}">
+      </form>
+      <a href="{{ url_for('dashboard') }}" class="nav-link" data-short="D">Dashboard</a>
+      <a href="{{ url_for('items') }}" class="nav-link" data-short="I">Items</a>
+      <a href="{{ url_for('report_new') }}" class="nav-link" data-short="R">New Report</a>
+      <a href="{{ url_for('reports') }}" class="nav-link" data-short="L">Reports</a>
+      <a href="{{ url_for('shortage') }}" class="nav-link" data-short="S">Shortage</a>
+      <a href="{{ url_for('una') }}" class="nav-link" data-short="N">Not Available</a>
+      <a href="{{ url_for('settings') }}" class="nav-link" data-short="G">Settings</a>
+    </div>
+  </nav>
+
+  <main class="main-content" id="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

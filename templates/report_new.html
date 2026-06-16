@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-3">New Report</h3>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('report_submit') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Item</label>
+                    <select name="item_id" class="form-select" required>
+                        <option value="">Select item</option>
+                        {% for item in items %}
+                        <option value="{{ item.id }}">{{ item.code }} - {{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Week</label>
+                    <select name="week_id" class="form-select" required>
+                        <option value="">Select</option>
+                        {% for w in weeks %}
+                        <option value="{{ w.id }}">Week {{ w.week_number }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Unit</label>
+                    <select name="unit_id" class="form-select" id="unitSelect" required>
+                        <option value="">Select unit</option>
+                        {% for u in units %}
+                        <option value="{{ u.id }}">{{ u.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ward</label>
+                    <select name="ward_id" class="form-select" id="wardSelect" required>
+                        <option value="">Select unit first</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Section</label>
+                    <select name="section_id" class="form-select" required>
+                        <option value="">Select section</option>
+                        {% for s in sections %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select" required>
+                        <option value="">Select</option>
+                        <option value="Shortage">Shortage</option>
+                        <option value="Not available">Not Available</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Submit Report</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('unitSelect').addEventListener('change', function() {
+    const unitId = this.value;
+    const wardSelect = document.getElementById('wardSelect');
+    wardSelect.innerHTML = '<option value="">Loading...</option>';
+    if (unitId) {
+        fetch('/api/wards/' + unitId)
+            .then(r => r.json())
+            .then(wards => {
+                wardSelect.innerHTML = '<option value="">Select ward</option>';
+                wards.forEach(w => {
+                    wardSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`;
+                });
+            });
+    } else {
+        wardSelect.innerHTML = '<option value="">Select unit first</option>';
+    }
+});
+</script>
+{% endblock %}

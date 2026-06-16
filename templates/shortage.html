@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Shortage Summary by Item</h3>
+    <div>
+        <form method="GET" style="display:inline">
+            <select name="store_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Stores</option>
+                {% for s in stores %}
+                <option value="{{ s.id }}" {% if request.args.get('store_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{{ url_for('export_shortage', store_id=request.args.get('store_id')) }}" class="btn btn-outline-success btn-sm no-print">Export Excel</a>
+        <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Print</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Item Name</th>
+                    <th>Store</th>
+                    <th>Times Reported Shortage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for code, name, store, total in data %}
+                <tr>
+                    <td>{{ code }}</td>
+                    <td>{{ name }}</td>
+                    <td>{{ store }}</td>
+                    <td><span class="badge bg-danger fs-6">{{ total }}</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No shortage reports</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
