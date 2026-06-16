@@ -185,9 +185,17 @@ def import_items():
     ws = wb['Master List2'] if 'Master List2' in wb.sheetnames else wb.active
     count = 0
     for row in ws.iter_rows(min_row=5, values_only=True):
-        code = str(row[2]).strip() if row[2] else ''
-        name = str(row[3]).strip() if row[3] else ''
-        store_name = str(row[4]).strip() if row[4] else ''
+        vals = [str(v).strip() if v is not None else '' for v in row]
+        if len(vals) < 3:
+            continue
+        code = vals[2] if len(vals) > 2 else ''
+        name = vals[3] if len(vals) > 3 else ''
+        store_name = vals[4] if len(vals) > 4 else ''
+        if not code and not name and not store_name:
+            continue
+        code = code or vals[0]
+        name = name or vals[1]
+        store_name = store_name or vals[2]
         if not code or not name or not store_name:
             continue
         store = Store.query.filter_by(name=store_name).first()
@@ -195,7 +203,7 @@ def import_items():
             store = Store(name=store_name)
             db.session.add(store)
             db.session.commit()
-        if not Item.query.filter_by(code=code, name=name).first():
+        if not Item.query.filter_by(code=code).first():
             item = Item(code=code, name=name, store_id=store.id)
             db.session.add(item)
             count += 1
@@ -255,17 +263,24 @@ def import_reports():
         count = 0
         errors = []
         for i, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
-            section_name = str(row[2]).strip() if len(row) > 2 and row[2] else ''
-            unit_name = str(row[3]).strip() if len(row) > 3 and row[3] else ''
-            ward_name = str(row[4]).strip() if len(row) > 4 and row[4] else ''
-            code = str(row[5]).strip() if len(row) > 5 and row[5] else ''
-            item_name = str(row[6]).strip() if len(row) > 6 and row[6] else ''
-            store_name = str(row[7]).strip() if len(row) > 7 and row[7] else ''
-            week_col = row[8]
-            week_num = row[9]
-            status = str(row[10]).strip() if len(row) > 10 and row[10] else ''
-            if not all([code, status]):
+            vals = [str(v).strip() if v is not None else '' for v in row]
+            if len(vals) < 3:
                 continue
+            section_name = vals[2] if len(vals) > 2 else ''
+            unit_name = vals[3] if len(vals) > 3 else ''
+            ward_name = vals[4] if len(vals) > 4 else ''
+            code = vals[5] if len(vals) > 5 else ''
+            item_name = vals[6] if len(vals) > 6 else ''
+            store_name = vals[7] if len(vals) > 7 else ''
+            week_col = vals[8] if len(vals) > 8 else ''
+            week_num = vals[9] if len(vals) > 9 else ''
+            status = vals[10] if len(vals) > 10 else ''
+            if not code and not status:
+                continue
+            if not code and vals:
+                code = vals[3] if len(vals) > 3 else code
+            if not status and len(vals) > 8:
+                status = vals[len(vals)-1]
             item = Item.query.filter_by(code=code).first()
             if not item:
                 errors.append(f'Row {i}: Item code "{code}" not found')
