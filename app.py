@@ -189,7 +189,7 @@ def import_items():
     name_idx = None
     store_idx = None
     data_start = 1
-    for row in ws.iter_rows(min_row=1, max_row=5, values_only=True):
+    for row in ws.iter_rows(min_row=1, max_row=5, max_col=ws.min_column + 20, values_only=True):
         vals = [str(v).strip().lower() if v else '' for v in row]
         if 'code' in vals:
             code_idx = vals.index('code')
@@ -199,16 +199,23 @@ def import_items():
             break
         data_start += 1
     if code_idx is None:
-        if ws.min_column == 1:
-            code_idx, name_idx, store_idx = 2, 3, 4
+        try:
+            first = next(ws.iter_rows(min_row=data_start, max_row=data_start, max_col=data_start + 10, values_only=True))
+            idx0 = str(first[0]).strip() if first[0] is not None else ''
+        except:
+            idx0 = ''
+        if idx0.isdigit() and data_start > 1:
+            code_idx, name_idx, store_idx = 1, 2, 3
         else:
             code_idx, name_idx, store_idx = 0, 1, 2
-        data_start = ws.min_row
+
+    need = [i for i in (code_idx, name_idx, store_idx) if i is not None]
+    max_data_col = max(need) + 1 + ws.min_column
 
     count = 0
-    for row in ws.iter_rows(min_row=data_start, values_only=True):
+    for row in ws.iter_rows(min_row=data_start, min_col=ws.min_column, max_col=max_data_col, values_only=True):
         vals = [str(v).strip() if v is not None else '' for v in row]
-        if len(vals) <= max(code_idx, name_idx or 0, store_idx or 0):
+        if len(vals) <= max(need):
             continue
         code = vals[code_idx]
         name = vals[name_idx] if name_idx is not None and len(vals) > name_idx else ''
@@ -280,7 +287,7 @@ def import_reports():
 
         header = None
         header_row = 0
-        for row in ws.iter_rows(min_row=1, max_row=5, values_only=True):
+        for row in ws.iter_rows(min_row=1, max_row=5, max_col=ws.min_column + 20, values_only=True):
             header_row += 1
             vals = [str(v).strip().lower() if v else '' for v in row]
             if 'code' in vals:
@@ -302,9 +309,12 @@ def import_reports():
         ward_idx = header.index('ward') if 'ward' in header else None
         section_idx = header.index('section') if 'section' in header else None
 
+        need = [i for i in (code_idx, status_idx, name_idx, store_idx, week_idx, unit_idx, ward_idx, section_idx) if i is not None]
+        max_data_col = max(need) + 1 + ws.min_column
+
         count = 0
         errors = []
-        for i, row in enumerate(ws.iter_rows(min_row=header_row + 1, values_only=True), start=header_row + 1):
+        for i, row in enumerate(ws.iter_rows(min_row=header_row + 1, min_col=ws.min_column, max_col=max_data_col, values_only=True), start=header_row + 1):
             vals = [str(v).strip() if v is not None else '' for v in row]
             if len(vals) <= max(code_idx, status_idx):
                 continue
@@ -512,43 +522,53 @@ def seed_from_excel():
 
     if 'Droplist' in wb.sheetnames:
         ws = wb['Droplist']
-        for row in ws.iter_rows(min_row=3, values_only=True):
-            date_range = str(row[5]).strip() if row[5] else ''
-            week_num = row[6]
-            if isinstance(week_num, (int, float)) and week_num > 0:
-                if not Week.query.filter_by(week_number=int(week_num)).first():
-                    db.session.add(Week(week_number=int(week_num), date_range=date_range))
+        mc = ws.min_column
+        if mc < 1:
+            mc = 1
+
+        for row in ws.iter_rows(min_row=2, min_col=mc, max_col=mc + 15, values_only=True):
+            vals = list(row)
+            date_raw = str(vals[0]).strip() if len(vals) > 0 and vals[0] else ''
+            week_raw = vals[1] if len(vals) > 1 else None
+            if isinstance(week_raw, (int, float)) and week_raw > 0:
+                if not Week.query.filter_by(week_number=int(week_raw)).first():
+                    db.session.add(Week(week_number=int(week_raw), date_range=date_raw))
 
         store_names = set()
-        for row in ws.iter_rows(min_row=3, max_row=6, values_only=True):
-            for idx in [8, 10, 12, 14]:
-                val = str(row[idx]).strip() if idx < len(row) and row[idx] else ''
-                if val:
-                    store_names.add(val)
+        for row in ws.iter_rows(min_row=2, min_col=mc, max_col=mc + 15, values_only=True):
+            vals = list(row)
+            store_val = str(vals[3]).strip() if len(vals) > 3 and vals[3] else ''
+            if store_val:
+                store_names.add(store_val)
         for name in store_names:
             if not Store.query.filter_by(name=name).first():
                 db.session.add(Store(name=name))
 
-        for row in ws.iter_rows(min_row=4, values_only=True):
-            unit_name = str(row[12]).strip() if len(row) > 12 and row[12] else ''
-            ward_name = str(row[13]).strip() if len(row) > 13 and row[13] else ''
-            section_name = str(row[14]).strip() if len(row) > 14 and row[14] else ''
+        rows_data = []
+        for row in ws.iter_rows(min_row=4, min_col=mc, max_col=mc + 15, values_only=True):
+            vals = list(row)
+            u = str(vals[7]).strip() if len(vals) > 7 and vals[7] else ''
+            w = str(vals[8]).strip() if len(vals) > 8 and vals[8] else ''
+            s = str(vals[9]).strip() if len(vals) > 9 and vals[9] else ''
+            if u or s:
+                rows_data.append((u, w, s))
 
-            if unit_name and not Unit.query.filter_by(name=unit_name).first():
-                db.session.add(Unit(name=unit_name))
-
-            if section_name and not Section.query.filter_by(name=section_name).first():
-                db.session.add(Section(name=section_name))
+        seen_units = set()
+        for u, w, s in rows_data:
+            if u and u not in seen_units:
+                seen_units.add(u)
+                if not Unit.query.filter_by(name=u).first():
+                    db.session.add(Unit(name=u))
+            if s and not Section.query.filter_by(name=s).first():
+                db.session.add(Section(name=s))
 
         db.session.commit()
 
-        for row in ws.iter_rows(min_row=4, values_only=True):
-            unit_name = str(row[12]).strip() if len(row) > 12 and row[12] else ''
-            ward_name = str(row[13]).strip() if len(row) > 13 and row[13] else ''
-            if unit_name and ward_name:
-                unit = Unit.query.filter_by(name=unit_name).first()
-                if unit and not Ward.query.filter_by(name=ward_name, unit_id=unit.id).first():
-                    db.session.add(Ward(name=ward_name, unit_id=unit.id))
+        for u, w, s in rows_data:
+            if u and w:
+                unit = Unit.query.filter_by(name=u).first()
+                if unit and not Ward.query.filter_by(name=w, unit_id=unit.id).first():
+                    db.session.add(Ward(name=w, unit_id=unit.id))
 
         db.session.commit()
 
