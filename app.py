@@ -576,6 +576,186 @@ def seed_from_excel():
     return redirect(url_for('settings'))
 
 
+@app.route('/import-all', methods=['POST'])
+def import_all():
+    import openpyxl
+    file = request.files.get('file')
+    if not file:
+        flash('No file selected', 'danger')
+        return redirect(request.referrer or url_for('dashboard'))
+
+    wb = openpyxl.load_workbook(file)
+    results = []
+
+    def _find_header(ws, keywords):
+        for row in ws.iter_rows(min_row=1, max_row=10, max_col=ws.min_column + 20, values_only=True):
+            vals = [str(v).strip().lower() if v else '' for v in row]
+            if all(k in vals for k in keywords):
+                return vals, [vals.index(k) for k in keywords]
+        return None, None
+
+    if 'Droplist' in wb.sheetnames:
+        ws = wb['Droplist']
+        mc = ws.min_column
+        if mc < 1:
+            mc = 1
+        week_count = 0
+        for row in ws.iter_rows(min_row=2, min_col=mc, max_col=mc + 15, values_only=True):
+            vals = list(row)
+            date_raw = str(vals[0]).strip() if len(vals) > 0 and vals[0] else ''
+            week_raw = vals[1] if len(vals) > 1 else None
+            if isinstance(week_raw, (int, float)) and week_raw > 0:
+                if not Week.query.filter_by(week_number=int(week_raw)).first():
+                    db.session.add(Week(week_number=int(week_raw), date_range=date_raw))
+                    week_count += 1
+        store_names = set()
+        for row in ws.iter_rows(min_row=2, min_col=mc, max_col=mc + 15, values_only=True):
+            vals = list(row)
+            store_val = str(vals[3]).strip() if len(vals) > 3 and vals[3] else ''
+            if store_val:
+                store_names.add(store_val)
+        for name in store_names:
+            if not Store.query.filter_by(name=name).first():
+                db.session.add(Store(name=name))
+        rows_data = []
+        for row in ws.iter_rows(min_row=5, min_col=mc, max_col=mc + 15, values_only=True):
+            vals = list(row)
+            u = str(vals[7]).strip() if len(vals) > 7 and vals[7] else ''
+            w = str(vals[8]).strip() if len(vals) > 8 and vals[8] else ''
+            s = str(vals[9]).strip() if len(vals) > 9 and vals[9] else ''
+            if u or s:
+                rows_data.append((u, w, s))
+        seen_units = set()
+        for u, w, s in rows_data:
+            if u and u not in seen_units:
+                seen_units.add(u)
+                if not Unit.query.filter_by(name=u).first():
+                    db.session.add(Unit(name=u))
+            if s and not Section.query.filter_by(name=s).first():
+                db.session.add(Section(name=s))
+        db.session.commit()
+        for u, w, s in rows_data:
+            if u and w:
+                unit = Unit.query.filter_by(name=u).first()
+                if unit and not Ward.query.filter_by(name=w, unit_id=unit.id).first():
+                    db.session.add(Ward(name=w, unit_id=unit.id))
+        db.session.commit()
+        results.append(f'{week_count} weeks, {len(store_names)} stores, {len(set(r[0] for r in rows_data if r[0]))} units, {len(set(r[2] for r in rows_data if r[2]))} sections seeded')
+
+    if 'Master List2' in wb.sheetnames:
+        ws = wb['Master List2']
+        header, idxs = _find_header(ws, ['code'])
+        if header:
+            code_idx = idxs[0]
+            name_idx = header.index('item') if 'item' in header else code_idx + 1
+            store_idx = header.index('store') if 'store' in header else code_idx + 2
+            need = [i for i in (code_idx, name_idx, store_idx) if i is not None]
+            max_col = max(need) + 1 + ws.min_column
+            item_count = 0
+            for row in ws.iter_rows(min_row=5, min_col=ws.min_column, max_col=max_col, values_only=True):
+                vals = [str(v).strip() if v is not None else '' for v in row]
+                if len(vals) <= max(need):
+                    continue
+                code = vals[code_idx]
+                name = vals[name_idx] if name_idx is not None and len(vals) > name_idx else ''
+                store_name = vals[store_idx] if store_idx is not None and len(vals) > store_idx else ''
+                if not code or not name or not store_name:
+                    continue
+                store = Store.query.filter_by(name=store_name).first()
+                if not store:
+                    store = Store(name=store_name)
+                    db.session.add(store)
+                    db.session.commit()
+                if not Item.query.filter_by(code=code).first():
+                    db.session.add(Item(code=code, name=name, store_id=store.id))
+                    item_count += 1
+            db.session.commit()
+            results.append(f'{item_count} items imported')
+        else:
+            results.append('Master List2: header not found')
+
+    if 'Report' in wb.sheetnames:
+        ws = wb['Report']
+        header, idxs = _find_header(ws, ['code', 'status'])
+        if header:
+            code_idx = idxs[0]
+            status_idx = idxs[1]
+            name_idx = header.index('item') if 'item' in header else None
+            store_idx = header.index('store') if 'store' in header else None
+            week_idx = header.index('week') if 'week' in header else None
+            unit_idx = header.index('unit') if 'unit' in header else None
+            ward_idx = header.index('ward') if 'ward' in header else None
+            section_idx = header.index('section') if 'section' in header else None
+            need = [i for i in (code_idx, status_idx) if i is not None]
+            max_col = max(need) + 1 + ws.min_column
+            import re
+            report_count = 0
+            errors = []
+            for i, row in enumerate(ws.iter_rows(min_row=3, min_col=ws.min_column, max_col=max_col, values_only=True), start=3):
+                vals = [str(v).strip() if v is not None else '' for v in row]
+                if len(vals) <= max(need):
+                    continue
+                code = vals[code_idx]
+                status_raw = vals[status_idx]
+                if not code or not status_raw:
+                    continue
+                section_name = vals[section_idx] if section_idx is not None and len(vals) > section_idx else ''
+                unit_name = vals[unit_idx] if unit_idx is not None and len(vals) > unit_idx else ''
+                ward_name = vals[ward_idx] if ward_idx is not None and len(vals) > ward_idx else ''
+                item_name = vals[name_idx] if name_idx is not None and len(vals) > name_idx else ''
+                store_name = vals[store_idx] if store_idx is not None and len(vals) > store_idx else ''
+                week_raw = vals[week_idx] if week_idx is not None and len(vals) > week_idx else ''
+                item = Item.query.filter_by(code=code).first()
+                if not item:
+                    errors.append(f'Row {i}: Item code "{code}" not found')
+                    continue
+                nums = re.findall(r'\d+', str(week_raw))
+                week_num = int(nums[0]) if nums else None
+                week = Week.query.filter_by(week_number=week_num).first() if week_num else None
+                if not week and week_num:
+                    week = Week(week_number=week_num, date_range=str(week_raw))
+                    db.session.add(week)
+                    db.session.commit()
+                if not week:
+                    errors.append(f'Row {i}: Week not found ({week_raw})')
+                    continue
+                unit = Unit.query.filter_by(name=unit_name).first() if unit_name else None
+                ward = Ward.query.filter_by(name=ward_name).first() if ward_name else None
+                section = Section.query.filter_by(name=section_name).first() if section_name else None
+                if not unit and unit_name:
+                    unit = Unit(name=unit_name)
+                    db.session.add(unit)
+                    db.session.commit()
+                if not ward and unit and ward_name:
+                    ward = Ward(name=ward_name, unit_id=unit.id)
+                    db.session.add(ward)
+                    db.session.commit()
+                if not section and section_name:
+                    section = Section(name=section_name)
+                    db.session.add(section)
+                    db.session.commit()
+                s = 'Shortage' if status_raw.lower() == 'shortage' else 'Not available'
+                if not Report.query.filter_by(item_id=item.id, week_id=week.id, status=s).first():
+                    db.session.add(Report(
+                        item_id=item.id, week_id=week.id,
+                        unit_id=unit.id if unit else 1,
+                        ward_id=ward.id if ward else 1,
+                        section_id=section.id if section else 1,
+                        status=s
+                    ))
+                    report_count += 1
+            db.session.commit()
+            msg = f'{report_count} reports imported'
+            if errors:
+                msg += f' ({len(errors)} errors: {errors[0]}{"..." if len(errors)>1 else ""})'
+            results.append(msg)
+        else:
+            results.append('Report: header not found')
+
+    flash('Import complete: ' + ' | '.join(results), 'success')
+    return redirect(url_for('dashboard'))
+
+
 @app.route('/settings/clear', methods=['POST'])
 def clear_data():
     Report.query.delete()

@@ -26,6 +26,11 @@
       <a href="{{ url_for('shortage') }}" class="nav-link" data-short="S">Shortage</a>
       <a href="{{ url_for('una') }}" class="nav-link" data-short="N">Not Available</a>
       <a href="{{ url_for('settings') }}" class="nav-link" data-short="G">Settings</a>
+      <hr style="border-color:rgba(255,255,255,.15);margin:.5rem 0">
+      <form action="{{ url_for('import_all') }}" method="POST" enctype="multipart/form-data" class="no-print">
+        <input type="file" name="file" accept=".xlsx,.xls" required style="display:none" id="importAllFile" onchange="this.form.submit()">
+        <button type="button" class="nav-link" data-short="U" onclick="document.getElementById('importAllFile').click()">Upload Excel</button>
+      </form>
     </div>
   </nav>
 
