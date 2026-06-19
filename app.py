@@ -1,5 +1,5 @@
 import os, shutil, json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 import logging
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, session, abort, g
@@ -892,7 +892,7 @@ def report_new():
     weeks = Week.query.order_by(Week.week_number).all()
     units = Unit.query.order_by(Unit.name).all()
     sections = Section.query.order_by(Section.name).all()
-    today = datetime.now(datetime.UTC).isocalendar()
+    today = datetime.now(timezone.utc).isocalendar()
     current_week_number = today[1]
     current_week = Week.query.filter_by(week_number=current_week_number).first()
     current_user = db.session.get(Staff, session.get('user_id')) if session.get('user_id') else None
@@ -923,7 +923,7 @@ def api_report_quick():
         ward = Ward.query.first()
         unit_id = ward.unit_id if ward else 1
         ward_id = ward.id if ward else 1
-    today = datetime.now(datetime.UTC).isocalendar()
+    today = datetime.now(timezone.utc).isocalendar()
     week = Week.query.filter_by(week_number=today[1]).first()
     if not week:
         flash('No active week found', 'danger')
@@ -1878,7 +1878,7 @@ def equipment_scan(id):
         return jsonify({'error': 'Not found'}), 404
     scanned_by = request.form.get('scanned_by', 'Staff').strip()
     eq.status = 'WORKING'
-    eq.last_scanned_date = datetime.now(datetime.UTC)
+    eq.last_scanned_date = datetime.now(timezone.utc)
     eq.last_scanned_by = scanned_by
     db.session.commit()
     _log_equipment(eq.id, 'SCANNED', scanned_by, 'Equipment scanned as WORKING')
@@ -2110,7 +2110,7 @@ def equipment_checkin(id):
     if return_status not in ('WORKING', 'MAINTENANCE', 'CONDEMNED'):
         return_status = 'WORKING'
     return_notes = request.form.get('return_notes', '').strip()
-    m.checked_in_at = datetime.now(datetime.UTC)
+    m.checked_in_at = datetime.now(timezone.utc)
     m.status = 'RETURNED'
     eq = db.session.get(Equipment, id)
     if eq:
@@ -2148,7 +2148,7 @@ def equipment_checkin_all():
         if m:
             if checked_in_by:
                 m.checked_in_by = checked_in_by
-            m.checked_in_at = datetime.now(datetime.UTC)
+            m.checked_in_at = datetime.now(timezone.utc)
             m.status = 'RETURNED'
             eq = db.session.get(Equipment, int(eid))
             if eq:
@@ -2457,7 +2457,7 @@ def api_offline_replay():
                 current_user = db.session.get(Staff, session.get('user_id')) if session.get('user_id') else None
                 unit_id = current_user.default_unit_id if current_user and current_user.default_unit_id else 1
                 ward_id = current_user.default_ward_id if current_user and current_user.default_ward_id else 1
-                week = Week.query.filter_by(week_number=datetime.now(datetime.UTC).isocalendar()[1]).first()
+                week = Week.query.filter_by(week_number=datetime.now(timezone.utc).isocalendar()[1]).first()
                 if week:
                     section = Section.query.first()
                     r = Report(item_id=int(item_id), week_id=week.id, unit_id=int(unit_id), ward_id=int(ward_id), section_id=section.id if section else 1, status='Shortage')
@@ -2502,7 +2502,7 @@ def equipment_fastscan_finish():
             new_status = statuses[i] if i < len(statuses) else 'WORKING'
             old_status = eq.status
             eq.status = new_status
-            eq.last_scanned_date = datetime.now(datetime.UTC)
+            eq.last_scanned_date = datetime.now(timezone.utc)
             eq.last_scanned_by = scanned_by
             _log_equipment(eq.id, 'STATUS_CHANGED', scanned_by,
                 f'Inspection scan: {old_status} → {new_status}')
@@ -2531,7 +2531,7 @@ def equipment_fastscan_finish():
             purpose=purpose, status='OUT'
         )
         eq.status = 'LOANED'
-        eq.last_scanned_date = datetime.now(datetime.UTC)
+        eq.last_scanned_date = datetime.now(timezone.utc)
         eq.last_scanned_by = scanned_by
         db.session.add(m)
         _log_equipment(eq.id, 'CHECKED_OUT', scanned_by,
