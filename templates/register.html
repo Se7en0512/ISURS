@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ 'dark' if request.cookies.get('theme') == 'dark' else 'light' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>PULSE — Register</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body class="register-page">
+  <div class="register-container">
+    <div class="register-card">
+      <div class="reg-logo">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <rect width="48" height="48" rx="8" fill="var(--navy)"/>
+          <text x="8" y="33" font-family="Georgia,serif" font-size="28" font-weight="700" fill="#fff" letter-spacing=".5">PU</text>
+        </svg>
+      </div>
+      <h1 class="reg-heading">Create Account</h1>
+      <p class="reg-subtitle">Register to access PULSE system</p>
+
+      <div class="reg-flash" id="regFlash">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      <form method="POST" id="regForm">
+        <div class="reg-field">
+          <label class="reg-label" for="employee_id">Employee ID <span class="reg-required">*</span></label>
+          <input id="employee_id" name="employee_id" class="reg-input" placeholder="e.g. E001" required autofocus autocomplete="off" style="text-transform:uppercase">
+          <div class="field-error" id="error-employee_id"></div>
+        </div>
+        <div class="reg-field">
+          <label class="reg-label" for="full_name">Full Name <span class="reg-required">*</span></label>
+          <input id="full_name" name="full_name" class="reg-input" placeholder="e.g. Juan Dela Cruz" required>
+          <div class="field-error" id="error-full_name"></div>
+        </div>
+        <div class="reg-field">
+          <label class="reg-label" for="position">Position</label>
+          <input id="position" name="position" class="reg-input" placeholder="e.g. Nurse, Technician">
+        </div>
+        <div class="reg-field">
+          <label class="reg-label" for="department">Department</label>
+          <input id="department" name="department" class="reg-input" placeholder="e.g. Nursing, ER, ICU">
+        </div>
+        <div class="reg-field">
+          <label class="reg-label" for="regPassword">Password <span class="reg-required">*</span></label>
+          <div class="password-wrap">
+            <input id="regPassword" name="password" type="password" class="reg-input" placeholder="Min 8 characters" required minlength="8">
+            <button type="button" class="pwd-toggle" id="regPwdToggle" onclick="toggleRegPassword()" tabindex="-1" aria-label="Show password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="pwd-strength-wrap" id="strengthWrap" style="display:none">
+            <div class="pwd-strength-bar">
+              <div class="pwd-strength-fill" id="strengthFill" style="width:0%"></div>
+            </div>
+            <span class="pwd-strength-label" id="pwdStrength"></span>
+          </div>
+          <div class="field-error" id="error-password"></div>
+        </div>
+        <button type="submit" class="btn-register" id="regBtn">
+          <span class="btn-text" id="regBtnText">Create Account</span>
+          <span class="btn-spinner" id="regBtnSpinner" style="display:none"></span>
+        </button>
+      </form>
+
+      <p class="reg-footer">
+        Already have an account? <a href="{{ url_for('login') }}" class="reg-link">Sign in</a>
+      </p>
+    </div>
+  </div>
+
+<script>
+(function() {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (!meta) return;
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form.method && form.method.toUpperCase() !== 'POST') return;
+    if (form.querySelector('input[name="csrf_token"]')) return;
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'csrf_token'; inp.value = meta.getAttribute('content');
+    form.appendChild(inp);
+  });
+})();
+
+function toggleRegPassword() {
+  var pwd = document.getElementById('regPassword');
+  var open = document.querySelector('#regPwdToggle .eye-open');
+  var closed = document.querySelector('#regPwdToggle .eye-closed');
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    open.style.display = 'none';
+    closed.style.display = '';
+    document.getElementById('regPwdToggle').setAttribute('aria-label', 'Hide password');
+  } else {
+    pwd.type = 'password';
+    open.style.display = '';
+    closed.style.display = 'none';
+    document.getElementById('regPwdToggle').setAttribute('aria-label', 'Show password');
+  }
+}
+
+function updateStrength() {
+  var v = document.getElementById('regPassword').value;
+  var wrap = document.getElementById('strengthWrap');
+  var fill = document.getElementById('strengthFill');
+  var label = document.getElementById('pwdStrength');
+  if (v.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  var s = 0;
+  if (v.length >= 8) s++;
+  if (v.length >= 12) s++;
+  if (/[a-z]/.test(v) && /[A-Z]/.test(v)) s++;
+  if (/\d/.test(v)) s++;
+  if (/[^a-zA-Z0-9]/.test(v)) s++;
+  var levels = [
+    { pct: 15, label: 'Weak', color: '#dc2626' },
+    { pct: 35, label: 'Fair', color: '#eab308' },
+    { pct: 55, label: 'Good', color: '#16a34a' },
+    { pct: 75, label: 'Strong', color: '#059669' },
+    { pct: 95, label: 'Very Strong', color: '#0d9488' }
+  ];
+  var idx = Math.min(s, 4);
+  fill.style.width = levels[idx].pct + '%';
+  fill.style.background = levels[idx].color;
+  label.textContent = levels[idx].label;
+  label.style.color = levels[idx].color;
+}
+
+document.getElementById('regPassword').addEventListener('input', updateStrength);
+
+document.getElementById('regForm').addEventListener('submit', function() {
+  var btn = document.getElementById('regBtn');
+  var text = document.getElementById('regBtnText');
+  var spinner = document.getElementById('regBtnSpinner');
+  btn.disabled = true;
+  text.textContent = 'Creating account…';
+  spinner.style.display = 'inline-block';
+});
+
+document.querySelectorAll('.flash-msg').forEach(function(msg) {
+  var text = msg.textContent.trim().toLowerCase();
+  if (text.includes('employee id') || text.includes('employee_id')) {
+    var err = document.getElementById('error-employee_id');
+    if (err) { err.textContent = msg.textContent.trim(); err.style.display = 'block'; msg.style.display = 'none'; }
+  } else if (text.includes('full name') || text.includes('name')) {
+    var err = document.getElementById('error-full_name');
+    if (err) { err.textContent = msg.textContent.trim(); err.style.display = 'block'; msg.style.display = 'none'; }
+  } else if (text.includes('password') || text.includes('characters')) {
+    var err = document.getElementById('error-password');
+    if (err) { err.textContent = msg.textContent.trim(); err.style.display = 'block'; msg.style.display = 'none'; }
+  }
+});
+</script>
+</body>
+</html>

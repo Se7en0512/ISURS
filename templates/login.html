@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ 'dark' if request.cookies.get('theme') == 'dark' else 'light' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>PULSE — Sign In</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <style>
+    .theme-corner {
+      position: fixed; top: 1rem; right: 1rem; z-index: 999;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-soft);
+      transition: background .15s, color .15s;
+    }
+    .theme-corner:hover { background: var(--bg); color: var(--text); }
+    .theme-corner svg { width: 18px; height: 18px; }
+  </style>
+</head>
+<body class="login-page">
+  <button class="theme-corner" id="themeCorner" onclick="toggleLoginTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <rect width="52" height="52" rx="10" fill="var(--navy)"/>
+          <text x="10" y="36" font-family="Georgia,serif" font-size="30" font-weight="700" fill="#fff" letter-spacing=".5">PU</text>
+        </svg>
+      </div>
+      <h1 class="login-heading">Sign In</h1>
+      <p class="login-subtitle">Hospital Asset &amp; Supply Management System</p>
+
+      <div class="login-flash" id="loginFlash">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      <form method="POST" id="loginForm">
+        <div class="login-field">
+          <label class="login-label" for="employee_id">Employee ID</label>
+          <input
+            id="employee_id"
+            name="employee_id"
+            class="login-input"
+            placeholder="e.g. E001"
+            required
+            autofocus
+            autocomplete="off"
+            style="text-transform:uppercase"
+          >
+          <div class="field-error" id="error-employee_id"></div>
+        </div>
+        <div class="login-field">
+          <label class="login-label" for="loginPassword">Password</label>
+          <div class="password-wrap">
+            <input
+              id="loginPassword"
+              name="password"
+              type="password"
+              class="login-input"
+              placeholder="Enter password"
+              required
+              minlength="8"
+              autocomplete="off"
+            >
+            <button type="button" class="pwd-toggle" id="pwdToggle" onclick="togglePassword()" tabindex="-1" aria-label="Show password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="field-error" id="error-password"></div>
+        </div>
+        <button type="submit" class="btn-login" id="loginBtn">
+          <span class="btn-text" id="loginBtnText">Sign In</span>
+          <span class="btn-spinner" id="loginBtnSpinner" style="display:none"></span>
+        </button>
+      </form>
+
+      <p class="login-footer">
+        No account? <a href="{{ url_for('register') }}" class="login-link">Register here</a>
+      </p>
+    </div>
+  </div>
+
+<script>
+(function() {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (!meta) return;
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form.method && form.method.toUpperCase() !== 'POST') return;
+    if (form.querySelector('input[name="csrf_token"]')) return;
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'csrf_token'; inp.value = meta.getAttribute('content');
+    form.appendChild(inp);
+  });
+})();
+
+function togglePassword() {
+  var pwd = document.getElementById('loginPassword');
+  var open = document.querySelector('.eye-open');
+  var closed = document.querySelector('.eye-closed');
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    open.style.display = 'none';
+    closed.style.display = '';
+    document.getElementById('pwdToggle').setAttribute('aria-label', 'Hide password');
+  } else {
+    pwd.type = 'password';
+    open.style.display = '';
+    closed.style.display = 'none';
+    document.getElementById('pwdToggle').setAttribute('aria-label', 'Show password');
+  }
+}
+
+function toggleLoginTheme() {
+  var html = document.documentElement;
+  var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.cookie = 'theme=' + next + ';path=/;max-age=31536000';
+}
+
+(function() {
+  var html = document.documentElement;
+  var theme = document.cookie.split('; ').find(function(r) { return r.startsWith('theme='); });
+  if (theme) {
+    html.setAttribute('data-theme', theme.split('=')[1]);
+  }
+})();
+
+document.getElementById('loginForm').addEventListener('submit', function() {
+  var btn = document.getElementById('loginBtn');
+  var text = document.getElementById('loginBtnText');
+  var spinner = document.getElementById('loginBtnSpinner');
+  btn.disabled = true;
+  text.textContent = 'Signing in…';
+  spinner.style.display = 'inline-block';
+});
+
+document.querySelectorAll('.flash-msg').forEach(function(msg) {
+  var text = msg.textContent.trim();
+  if (text.toLowerCase().includes('employee id') || text.toLowerCase().includes('employee_id')) {
+    var err = document.getElementById('error-employee_id');
+    if (err) { err.textContent = text; err.style.display = 'block'; msg.style.display = 'none'; }
+  } else if (text.toLowerCase().includes('password') || text.toLowerCase().includes('invalid')) {
+    var err = document.getElementById('error-password');
+    if (err) { err.textContent = text; err.style.display = 'block'; msg.style.display = 'none'; }
+  }
+});
+</script>
+</body>
+</html>

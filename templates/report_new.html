@@ -1,64 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
-<h3 class="mb-3">New Report</h3>
+<div class="page-header">
+  <div>
+    <h2>New Report</h2>
+    <p class="subtitle">Record item shortage or unavailability</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px">
+    <a href="{{ url_for('reports') }}" class="btn btn-glove btn-outline-secondary btn-sm">Reports</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-glove btn-outline-secondary btn-sm">Dashboard</a>
+  </div>
+</div>
 
-<div class="card">
+<div class="card card--bordered">
     <div class="card-body">
         <form method="POST" action="{{ url_for('report_submit') }}">
-            <div class="row g-3">
-                <div class="col-md-4">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem">
+                <div class="searchable-select-wrap">
                     <label class="form-label">Item</label>
-                    <select name="item_id" class="form-select" required>
-                        <option value="">Select item</option>
-                        {% for item in items %}
-                        <option value="{{ item.id }}">{{ item.code }} - {{ item.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <input id="itemSearch" class="form-control form-control-glove" placeholder="Type item code or name..." required autocomplete="off">
+                    <input type="hidden" name="item_id" id="itemIdHidden">
+                    <div class="staff-ac-dropdown" id="itemAC"></div>
                 </div>
-                <div class="col-md-2">
+                <div>
                     <label class="form-label">Week</label>
-                    <select name="week_id" class="form-select" required>
+                    <select name="week_id" class="form-select form-select-glove" required>
                         <option value="">Select</option>
                         {% for w in weeks %}
-                        <option value="{{ w.id }}">Week {{ w.week_number }}</option>
+                        <option value="{{ w.id }}" {% if w.id == current_week_id %}selected{% endif %}>Week {{ w.week_number }} — {{ w.date_range }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div>
                     <label class="form-label">Unit</label>
-                    <select name="unit_id" class="form-select" id="unitSelect" required>
+                    <select name="unit_id" class="form-select form-select-glove" id="unitSelect" required>
                         <option value="">Select unit</option>
                         {% for u in units %}
-                        <option value="{{ u.id }}">{{ u.name }}</option>
+                        <option value="{{ u.id }}" {% if u.id == default_unit_id %}selected{% endif %}>{{ u.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div>
                     <label class="form-label">Ward</label>
-                    <select name="ward_id" class="form-select" id="wardSelect" required>
+                    <select name="ward_id" class="form-select form-select-glove" id="wardSelect" required>
                         <option value="">Select unit first</option>
+                        {% for w in default_wards %}
+                        <option value="{{ w.id }}" {% if w.id == default_ward_id %}selected{% endif %}>{{ w.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div>
                     <label class="form-label">Section</label>
-                    <select name="section_id" class="form-select" required>
+                    <select name="section_id" class="form-select form-select-glove" required>
                         <option value="">Select section</option>
                         {% for s in sections %}
                         <option value="{{ s.id }}">{{ s.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div>
                     <label class="form-label">Status</label>
-                    <select name="status" class="form-select" required>
+                    <select name="status" class="form-select form-select-glove" required>
                         <option value="">Select</option>
                         <option value="Shortage">Shortage</option>
                         <option value="Not available">Not Available</option>
                     </select>
                 </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">Submit Report</button>
-                </div>
+            </div>
+            <div style="margin-top:1rem">
+                <button type="submit" class="btn btn-primary btn-pill btn-glove">Submit Report</button>
             </div>
         </form>
     </div>
@@ -67,17 +76,66 @@
 
 {% block scripts %}
 <script>
+// ── Item searchable dropdown ──
+(function() {
+  var input = document.getElementById('itemSearch');
+  var hidden = document.getElementById('itemIdHidden');
+  var dd = document.getElementById('itemAC');
+  if (!input) return;
+  var items = {{ items|tojson|safe }};
+  input.addEventListener('input', function() {
+    var q = input.value.trim().toLowerCase();
+    hidden.value = '';
+    dd.innerHTML = '';
+    if (q.length < 1) { dd.classList.remove('open'); return; }
+    var matches = items.filter(function(i) {
+      return i.code.toLowerCase().includes(q) || i.name.toLowerCase().includes(q);
+    }).slice(0, 15);
+    if (matches.length === 0) { dd.classList.remove('open'); return; }
+    matches.forEach(function(i) {
+      var item = document.createElement('div');
+      item.className = 'staff-ac-item';
+      item.innerHTML = '<span class="ac-name">' + esc(i.code) + ' — ' + esc(i.name) + '</span><span class="ac-dept">' + esc(i.store_name || '') + '</span>';
+      item.addEventListener('click', function() {
+        input.value = i.code + ' — ' + i.name;
+        hidden.value = i.id;
+        dd.classList.remove('open');
+      });
+      dd.appendChild(item);
+    });
+    dd.classList.add('open');
+  });
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.searchable-select-wrap')) dd.classList.remove('open');
+  });
+  // Allow direct form submit if typed ID matches
+  input.closest('form').addEventListener('submit', function(e) {
+    if (!hidden.value) {
+      var match = items.filter(function(i) {
+        var val = input.value.trim();
+        return i.code === val || i.name === val || (i.code + ' — ' + i.name) === val;
+      });
+      if (match.length === 1) hidden.value = match[0].id;
+    }
+    if (!hidden.value) { e.preventDefault(); alert('Please select an item from the list'); }
+  });
+})();
+
+// ── Ward cascade ──
 document.getElementById('unitSelect').addEventListener('change', function() {
     const unitId = this.value;
     const wardSelect = document.getElementById('wardSelect');
     wardSelect.innerHTML = '<option value="">Loading...</option>';
     if (unitId) {
-        fetch('/api/wards/' + unitId)
+        csrfFetch('/api/wards/' + unitId)
             .then(r => r.json())
             .then(wards => {
                 wardSelect.innerHTML = '<option value="">Select ward</option>';
                 wards.forEach(w => {
-                    wardSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`;
+                    var opt = document.createElement('option');
+                    opt.value = w.id;
+                    opt.textContent = w.name;
+                    wardSelect.appendChild(opt);
                 });
             });
     } else {

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PULSE - QR Stickers</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 15px;
+      background: #fff;
+    }
+    .page-header {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 14px;
+      color: #333;
+    }
+    .page-header a { color: #0b2b5c; text-decoration: none; }
+    .sticker-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .sticker {
+      border: 2px dashed #bbb;
+      padding: 12px 8px;
+      text-align: center;
+      page-break-inside: avoid;
+      background: #fff;
+    }
+    .sticker img {
+      width: 160px;
+      height: 160px;
+      image-rendering: auto;
+    }
+    .sticker .biomed {
+      font-family: 'Consolas', 'SF Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0b2b5c;
+      margin-top: 6px;
+    }
+    .sticker .name {
+      font-size: 10px;
+      color: #555;
+      margin-top: 2px;
+    }
+    @media print {
+      @page { margin: 8mm; }
+      body { padding: 0; }
+      .page-header { display: none; }
+      .sticker { border: 1px dashed #999; box-shadow: none; }
+      .sticker-grid { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <strong>PULSE</strong> — Equipment QR Stickers &nbsp;|&nbsp;
+    <a href="#" onclick="window.print();return false">Print</a> &nbsp;|&nbsp;
+    <a href="{{ url_for('equipment_list') }}" target="_blank">Back to Equipment</a>
+  </div>
+  <div class="sticker-grid">
+    {% for e in equipment %}
+    <div class="sticker">
+      <img src="{{ url_for('equipment_qr_image', id=e.id) }}" alt="QR for {{ e.biomed }}">
+      <div class="biomed">{{ e.biomed }}</div>
+      <div class="name">{{ e.name }}</div>
+    </div>
+    {% else %}
+    <p style="grid-column:1/-1;text-align:center;padding:40px;color:#999">No equipment selected</p>
+    {% endfor %}
+  </div>
+</body>
+</html>

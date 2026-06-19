@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>User Preferences</h2>
+    <p class="subtitle">Customize your PULSE experience</p>
+  </div>
+</div>
+
+<form method="POST" class="card card--bordered" style="max-width:520px">
+  <div class="card-body">
+    <h5 style="font-size:.9rem;font-weight:600;margin:0 0 1rem 0;font-family:var(--font-serif)">Default Filters</h5>
+
+    <div style="margin-bottom:.85rem">
+      <label class="form-label">Default Unit</label>
+      <select name="default_unit_id" class="form-select form-select-glove">
+        <option value="">— None —</option>
+        {% for u in units %}
+        <option value="{{ u.id }}" {% if user.default_unit_id == u.id %}selected{% endif %}>{{ u.name }}</option>
+        {% endfor %}
+      </select>
+      <span style="font-size:.7rem;color:var(--text-muted)">Auto-selects this unit when submitting reports</span>
+    </div>
+
+    <div style="margin-bottom:.85rem">
+      <label class="form-label">Default Ward</label>
+      <select name="default_ward_id" class="form-select form-select-glove">
+        <option value="">— None —</option>
+        {% for w in wards %}
+        <option value="{{ w.id }}" {% if user.default_ward_id == w.id %}selected{% endif %}>{{ w.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="margin-bottom:.85rem">
+      <label class="form-label">Default Store</label>
+      <select name="default_store_id" class="form-select form-select-glove">
+        <option value="">— None —</option>
+        {% for s in stores %}
+        <option value="{{ s.id }}" {% if user.default_store_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <hr style="border-color:var(--border-soft);margin:1rem 0">
+
+    <h5 style="font-size:.9rem;font-weight:600;margin:0 0 1rem 0;font-family:var(--font-serif)">Display</h5>
+
+    <div style="margin-bottom:.85rem">
+      <label class="form-label">Default Theme</label>
+      <select name="pref_theme" class="form-select form-select-glove">
+        <option value="auto" {% if prefs.get('theme') == 'auto' %}selected{% endif %}>System Default</option>
+        <option value="light" {% if prefs.get('theme') == 'light' %}selected{% endif %}>Light</option>
+        <option value="dark" {% if prefs.get('theme') == 'dark' %}selected{% endif %}>Dark</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:.85rem">
+      <label class="form-label">Dashboard Auto-Refresh (seconds)</label>
+      <input type="number" name="pref_poll" class="form-control form-control-glove" min="5" max="300" value="{{ prefs.get('poll_interval', 10) }}">
+    </div>
+
+    <div style="margin-bottom:.85rem;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" name="auto_redirect" id="autoRedirect" value="1" {% if prefs.get('auto_redirect') %}checked{% endif %} style="width:18px;height:18px">
+      <label for="autoRedirect" style="font-size:.82rem;margin:0">Auto-redirect to report page after logging in</label>
+    </div>
+
+    <div class="confirm-actions" style="margin-top:1rem">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary btn-square btn-glove">Cancel</a>
+      <button type="submit" class="btn btn-sm btn-primary btn-square btn-glove">Save Preferences</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

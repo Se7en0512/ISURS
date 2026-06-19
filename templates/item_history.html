@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>{{ item.code }} — {{ item.name }}</h2>
+    <p class="subtitle">Store: {{ item.store.name }} · Stock: {{ item.stock_quantity or 0 }} · Critical: {{ item.critical_level or 0 }}</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px">
+    <a href="{{ url_for('items') }}" class="btn btn-sm btn-outline-secondary btn-square btn-glove">← Back</a>
+  </div>
+</div>
+
+<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:1rem">
+  <div class="stat-card" style="border-left:3px solid var(--red)">
+    <div class="stat-num">{{ reports|selectattr('status','equalto','Shortage')|list|length }}</div>
+    <div class="stat-label">Shortages</div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid var(--amber)">
+    <div class="stat-num">{{ reports|selectattr('status','equalto','Not available')|list|length }}</div>
+    <div class="stat-label">Not Available</div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid var(--green)">
+    <div class="stat-num">{{ reports|selectattr('status','equalto','OK')|list|length }}</div>
+    <div class="stat-label">OK Reports</div>
+  </div>
+  <div class="stat-card" style="border-left:3px solid var(--teal)">
+    <div class="stat-num">{{ reports|length }}</div>
+    <div class="stat-label">Total Reports</div>
+  </div>
+</div>
+
+<div class="card card--accent mb-3">
+  <div class="card-body">
+    <h5 style="font-size:.82rem;font-weight:600;margin:0 0 .75rem 0;font-family:var(--font-serif)">Monthly Trend</h5>
+    <div style="position:relative;height:200px">
+      <canvas id="itemTrendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card-body p-0">
+    <table class="table table--light">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Store</th>
+          <th>Unit</th>
+          <th>Ward</th>
+          <th>Status</th>
+          <th>Week</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reports %}
+        <tr>
+          <td style="white-space:nowrap">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '-' }}</td>
+          <td>{{ r.item.store.name }}</td>
+          <td>{{ r.unit.name }}</td>
+          <td>{{ r.ward.name }}</td>
+          <td>
+            {% if r.status == 'Shortage' %}
+            <span class="badge-outline-danger">Shortage</span>
+            {% elif r.status == 'Not available' %}
+            <span class="badge-outline-warning">Not Available</span>
+            {% else %}
+            <span class="badge-outline-success">{{ r.status }}</span>
+            {% endif %}
+          </td>
+          <td>Week {{ r.week.week_number }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted" style="padding:2rem">No reports for this item yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var ctx = document.getElementById('itemTrendChart');
+if (ctx) {
+  ctx = ctx.getContext('2d');
+  var labels = [], shortages = [], unas = [];
+  {% for c in chart_data %}
+  labels.push('{{ c.month }}');
+  shortages.push({{ c.shortage }});
+  unas.push({{ c.una }});
+  {% endfor %}
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Shortage', data: shortages, backgroundColor: '#b91c1c33', borderColor: '#b91c1c', borderWidth: 1.5 },
+        { label: 'Not Available', data: unas, backgroundColor: '#e8a31733', borderColor: '#e8a317', borderWidth: 1.5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 9 } }, grid: { color: 'var(--border-soft)' } }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

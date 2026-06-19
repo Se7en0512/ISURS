@@ -1,4 +1,9 @@
 flask==3.1.1
 flask-sqlalchemy==3.1.1
+flask-wtf==1.2.2
+flask-limiter==4.1.1
 openpyxl==3.1.5
-gunicorn==23.0.0
+pywebview==6.2.1
+qrcode[pil]==7.4.2
+pillow==10.4.0
+waitress==3.0.2

@@ -1,45 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Shortage Summary by Item</h3>
-    <div>
-        <form method="GET" style="display:inline">
-            <select name="store_id" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">All Stores</option>
-                {% for s in stores %}
-                <option value="{{ s.id }}" {% if request.args.get('store_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        <a href="{{ url_for('export_shortage', store_id=request.args.get('store_id')) }}" class="btn btn-outline-success btn-sm no-print">Export Excel</a>
-        <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Print</button>
-    </div>
+<div class="page-header">
+  <div>
+    <h2>Shortage Summary</h2>
+    <p class="subtitle">Items reported as shortage, grouped by frequency</p>
+  </div>
+  <div class="d-flex" style="gap:6px">
+    <form method="GET" class="d-flex flex-wrap" style="gap:.5rem">
+      <select name="store_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;min-width:160px">
+        <option value="">All Stores</option>
+        {% for s in stores %}
+        <option value="{{ s.id }}" {% if request.args.get('store_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="date" name="from" class="form-control form-control-sm" style="width:auto;min-width:130px" value="{{ request.args.get('from','') }}" placeholder="From">
+      <input type="date" name="to" class="form-control form-control-sm" style="width:auto;min-width:130px" value="{{ request.args.get('to','') }}" placeholder="To">
+    </form>
+    <a href="{{ url_for('export_shortage', store_id=request.args.get('store_id')) }}" class="btn btn-outline-success btn-sm no-print">Export Excel</a>
+    <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">Print</button>
+  </div>
 </div>
 
-<div class="card">
-    <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Code</th>
-                    <th>Item Name</th>
-                    <th>Store</th>
-                    <th>Times Reported Shortage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for code, name, store, total in data %}
-                <tr>
-                    <td>{{ code }}</td>
-                    <td>{{ name }}</td>
-                    <td>{{ store }}</td>
-                    <td><span class="badge bg-danger fs-6">{{ total }}</span></td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4" class="text-center text-muted py-4">No shortage reports</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="card card--flush">
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--light">
+        <thead>
+          <tr>
+            <th style="width:60px">#</th>
+            <th>Code</th>
+            <th>Item Name</th>
+            <th>Store</th>
+            <th style="text-align:center;width:160px">Times Reported</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for code, name, store, total in data %}
+          <tr>
+            <td style="color:var(--text-muted)">{{ loop.index }}</td>
+            <td><code>{{ code }}</code></td>
+            <td>{{ name }}</td>
+            <td>{{ store }}</td>
+            <td style="text-align:center"><span class="badge bg-danger" style="font-size:.9rem;min-width:36px">{{ total }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted" style="padding:3rem">
+            <div class="empty-state">
+              <div class="empty-icon">📋</div>
+              <div>No shortage reports</div>
+              <div style="font-size:.78rem;margin-top:4px">Reports will appear here once submitted</div>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
 </div>
 {% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Staff Management</h2>
+    <p class="subtitle">Manage accounts and approve registrations</p>
+  </div>
+  <div class="no-print flex-gap-6">
+    <button class="btn btn-sm btn-primary btn-square" data-bs-toggle="modal" data-bs-target="#addStaffModal">+ Add Staff</button>
+  </div>
+</div>
+
+{% if pending %}
+<div class="card card--bordered card--warn mb-3">
+  <div class="card-header" style="color:var(--amber)"><span>⏳ Pending Approval ({{ pending|length }})</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle">
+        <thead>
+          <tr>
+            <th>Employee ID</th>
+            <th>Full Name</th>
+            <th>Position</th>
+            <th>Department</th>
+            <th>Registered</th>
+            <th class="no-print">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in pending %}
+          <tr>
+            <td><code>{{ s.employee_id }}</code></td>
+            <td>{{ s.full_name }}</td>
+            <td>{{ s.position or '—' }}</td>
+            <td>{{ s.department or '—' }}</td>
+            <td class="nowrap">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="no-print">
+              <form method="POST" action="{{ url_for('staff_approve', id=s.id) }}" style="display:inline-flex;gap:4px;align-items:center">
+                <select name="role" class="form-select form-select-sm" style="width:auto;min-width:70px">
+                  <option value="staff">Staff</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button class="btn btn-sm btn-success btn-pill">Approve</button>
+              </form>
+              <form method="POST" action="{{ url_for('staff_reject', id=s.id) }}" style="display:inline" data-confirm="Reject {{ s.employee_id }} registration?">
+                <button class="btn btn-sm btn-outline-danger btn-square">Reject</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card card--flush">
+  <div class="card-header"><span>Approved Staff ({{ approved|length }})</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle sortable">
+        <thead>
+          <tr>
+            <th>Employee ID</th>
+            <th>Full Name</th>
+            <th>Position</th>
+            <th>Department</th>
+            <th>Role</th>
+            <th>Password</th>
+            <th>Date Added</th>
+            <th class="no-print">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in approved %}
+          <tr>
+            <td><code>{{ s.employee_id }}</code></td>
+            <td>{{ s.full_name }}</td>
+            <td>{{ s.position or '—' }}</td>
+            <td>{{ s.department or '—' }}</td>
+            <td>
+              {% if s.role == 'admin' %}
+                <span class="badge bg-danger">Admin</span>
+              {% else %}
+                <span class="badge bg-secondary">Staff</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.password_hash %}
+                <span class="badge bg-success">Set</span>
+              {% else %}
+                <span class="badge bg-secondary">Not set</span>
+              {% endif %}
+            </td>
+            <td class="nowrap">{{ s.created_at.strftime('%Y-%m-%d') }}</td>
+            <td class="no-print">
+              <button class="btn btn-sm btn-outline-primary btn-square btn-password" data-sid="{{ s.id }}" data-eid="{{ s.employee_id }}">Password</button>
+              <form method="POST" action="{{ url_for('staff_delete', id=s.id) }}" style="display:inline" data-confirm="Delete {{ s.employee_id }} — {{ s.full_name }}?">
+                <button class="btn btn-sm btn-outline-danger btn-square">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted" style="padding:3rem">
+            <div class="empty-state">
+              <div class="empty-icon">👤</div>
+              <div>No approved staff</div>
+              <div style="font-size:.78rem;margin-top:4px">Approve pending registrations or add staff manually</div>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addStaffModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('staff_add') }}">
+      <div class="modal-content">
+        <div class="modal-header"><h5 style="margin:0;font-size:1rem">Add Staff</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Employee ID</label>
+            <input name="employee_id" class="form-control form-control-glove" placeholder="e.g. E001" required autocomplete="off" style="text-transform:uppercase">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Full Name</label>
+            <input name="full_name" class="form-control form-control-glove" placeholder="e.g. Juan Dela Cruz" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Position</label>
+            <input name="position" class="form-control form-control-glove" placeholder="e.g. Nurse, Technician">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Department</label>
+            <input name="department" class="form-control form-control-glove" placeholder="e.g. Nursing, ER, ICU">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-select form-select-glove">
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Password</label>
+            <input name="password" type="password" class="form-control form-control-glove" placeholder="Leave blank to set later">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary btn-glove">Add</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="staffPasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('staff_set_password') }}">
+      <div class="modal-content">
+        <div class="modal-header"><h5 style="margin:0;font-size:1rem">Set Password</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+          <p style="font-size:.82rem;color:var(--text-soft);margin-bottom:1rem" id="passwordModalStaff"></p>
+          <input type="hidden" name="staff_id" id="passwordStaffId">
+          <div class="mb-2">
+            <label class="form-label">New Password</label>
+            <input name="password" type="password" class="form-control form-control-glove" placeholder="Enter password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary btn-glove">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function showStaffPasswordModal(id, eid) {
+  document.getElementById('passwordStaffId').value = id;
+  document.getElementById('passwordModalStaff').textContent = 'Setting password for: ' + eid;
+  new bootstrap.Modal(document.getElementById('staffPasswordModal')).show();
+}
+
+document.querySelectorAll('.btn-password').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    showStaffPasswordModal(this.getAttribute('data-sid'), this.getAttribute('data-eid'));
+  });
+});
+</script>
+{% endblock %}

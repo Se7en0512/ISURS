@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Equipment Tracking</h2>
+    <p class="subtitle">{{ checked_out_count }} item{% if checked_out_count != 1 %}s{% endif %} currently checked out</p>
+  </div>
+  <div class="no-print flex-gap-6">
+    <a href="{{ url_for('equipment_dashboard') }}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+    <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary btn-sm">Equipment List</a>
+    <a href="{{ url_for('activity_log') }}" class="btn btn-outline-secondary btn-sm btn-pill">📋 Activity Log</a>
+  </div>
+</div>
+
+{% if checked_out_count > 0 %}
+<div style="background:var(--teal-dim);border-left:4px solid #7c3aed;border-radius:6px;padding:.65rem 1rem;margin-bottom:1rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  <span style="font-weight:600;font-size:.82rem;color:#7c3aed">📍 {{ checked_out_count }} currently checked out</span>
+  <span style="font-size:.75rem;color:var(--text-soft)">Track who has what and where</span>
+</div>
+{% endif %}
+
+<div class="card card--flush mb-3 no-print">
+  <div class="card-body" style="padding:.65rem 1rem">
+    <form method="GET" class="d-flex flex-wrap" style="gap:.5rem;align-items:center">
+      <input name="q" class="form-control form-control-sm" placeholder="Search equipment, staff, destination..." style="width:auto;min-width:220px" value="{{ request.args.get('q','') }}">
+      <select name="location" class="form-select form-select-sm" style="width:auto;min-width:140px">
+        <option value="">All Locations</option>
+        {% for d in destinations %}
+        <option value="{{ d }}" {% if request.args.get('location') == d %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-outline-primary btn-square">Filter</button>
+      <a href="{{ url_for('equipment_tracking') }}" class="btn btn-sm btn-outline-secondary btn-square">Clear</a>
+    </form>
+    <hr style="margin:.4rem 0;opacity:.3">
+    <form method="GET" action="{{ url_for('equipment_export_log') }}" class="d-flex flex-wrap" style="gap:.5rem;align-items:center">
+      <span style="font-size:.72rem;color:var(--text-muted)">Export Audit:</span>
+      <input type="date" name="from" class="form-control form-control-sm" style="width:auto;min-width:130px" value="{{ request.args.get('from','') }}">
+      <span style="font-size:.72rem;color:var(--text-muted)">to</span>
+      <input type="date" name="to" class="form-control form-control-sm" style="width:auto;min-width:130px" value="{{ request.args.get('to','') }}">
+      <button type="submit" class="btn btn-sm btn-outline-success btn-square">Export Log</button>
+    </form>
+  </div>
+</div>
+
+{% if checked_out_count > 0 %}
+<div class="no-print" style="margin-bottom:.75rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <label style="font-size:.78rem;display:flex;align-items:center;gap:4px;cursor:pointer">
+    <input type="checkbox" id="selectAll" onchange="toggleAll()"> Select All
+  </label>
+  <div class="staff-ac-wrap">
+    <input id="bulkCheckinStaff" class="form-control form-control-sm" placeholder="Employee ID (who checks in)" style="width:160px" autocomplete="off">
+    <div class="staff-ac-dropdown" id="bulkCheckinAC"></div>
+  </div>
+  <input type="hidden" id="bulkStaffHidden">
+  <select id="bulkReturnStatus" class="form-select form-select-sm" style="width:auto;min-width:110px">
+    <option value="WORKING">✓ Working</option>
+    <option value="MAINTENANCE">⚙ Needs Repair</option>
+    <option value="CONDEMNED">✕ Condemned</option>
+  </select>
+  <input id="bulkNotes" class="form-control form-control-sm" placeholder="Notes (optional)" style="width:auto;min-width:120px">
+  <button class="btn btn-sm btn-success btn-pill" onclick="bulkCheckin()" id="bulkCheckinBtn" disabled>↩ Check In (<span id="selCount">0</span>)</button>
+</div>
+{% endif %}
+
+<form id="bulkForm" method="POST" action="{{ url_for('equipment_checkin_all') }}" style="display:none">
+  <div id="bulkIds"></div>
+  <input type="hidden" name="checked_in_by" id="bulkStaffField">
+  <input type="hidden" name="return_status" id="bulkReturnField">
+  <input type="hidden" name="return_notes" id="bulkNotesField">
+</form>
+
+<div class="equip-tracking-grid">
+  {% for m in movements %}
+  {% set e = m.equipment %}
+  <div class="track-card">
+    <div class="track-card-top">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" class="track-check" value="{{ e.id }}" onchange="updateBulk()">
+        <div class="track-biomed"><code>{{ e.biomed }}</code></div>
+      </div>
+      <div class="track-status"><span class="badge bg-purple">OUT</span></div>
+    </div>
+    <div class="track-name">{{ e.name }}</div>
+    <div class="track-details">
+      <div class="track-row">
+        <span class="track-label">Checked Out By</span>
+        <span class="track-value">{{ m.checked_out_by }}</span>
+      </div>
+      <div class="track-row">
+        <span class="track-label">Location</span>
+        <span class="track-value">{{ e.location or m.source_location or '—' }}</span>
+      </div>
+      <div class="track-row">
+        <span class="track-label">Destination</span>
+        <span class="track-value dest">{{ m.destination }}</span>
+      </div>
+      {% if m.purpose %}
+      <div class="track-row">
+        <span class="track-label">Purpose</span>
+        <span class="track-value">{{ m.purpose }}</span>
+      </div>
+      {% endif %}
+      <div class="track-row">
+        <span class="track-label">Checked Out</span>
+        <span class="track-value">{{ m.checked_out_at.strftime('%b %d, %Y %H:%M') }}</span>
+      </div>
+      <div class="track-row">
+        <span class="track-label">Duration</span>
+        <span class="track-value">
+          {% set delta = now() - m.checked_out_at %}
+          {% if delta.days > 0 %}{{ delta.days }}d {% endif %}{{ (delta.seconds // 3600) }}h {{ ((delta.seconds % 3600) // 60) }}m
+        </span>
+      </div>
+      {% if e.remarks %}
+      <div class="track-row">
+        <span class="track-label">Remarks</span>
+        <span class="track-value text-soft">{{ e.remarks }}</span>
+      </div>
+      {% endif %}
+      {% if e.last_scanned_date %}
+      <div class="track-row">
+        <span class="track-label">Last Scanned</span>
+        <span class="track-value">{{ e.last_scanned_date.strftime('%d-%b-%Y %H:%M') }}</span>
+      </div>
+      {% endif %}
+      {% if e.last_scanned_by %}
+      <div class="track-row">
+        <span class="track-label">Scanned By</span>
+        <span class="track-value">{{ e.last_scanned_by }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="track-actions">
+      <a href="{{ url_for('equipment_detail', id=e.id) }}" class="btn btn-sm btn-outline-primary btn-square">🔍 View</a>
+      <form method="POST" action="{{ url_for('equipment_checkin', id=e.id) }}" style="display:inline-flex;gap:4px;flex-wrap:wrap">
+        <input name="checked_in_by" class="form-control form-control-sm" placeholder="Emp ID" style="width:70px;display:inline-block;font-size:.7rem;padding:.15rem .3rem">
+        <select name="return_status" class="form-control form-control-sm" style="width:auto;min-width:80px;font-size:.7rem;padding:.15rem .3rem;display:inline-block">
+          <option value="WORKING">✓ OK</option>
+          <option value="MAINTENANCE">⚙ Repair</option>
+          <option value="CONDEMNED">✕ Bad</option>
+        </select>
+        <button class="btn btn-sm btn-success btn-pill" style="font-size:.72rem">↩ In</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div style="grid-column:1/-1;padding:3rem;text-align:center">
+    <div class="empty-state">
+      <div class="empty-icon">📍</div>
+      <div>No equipment currently checked out</div>
+      <div style="font-size:.78rem;margin-top:4px;color:var(--text-muted)">All equipment is on-site</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if checked_out_count > 0 %}
+<div style="margin-top:.75rem;font-size:.78rem;color:var(--text-muted);text-align:right">Showing {{ checked_out_count }} of {{ checked_out_count }} items</div>
+{% endif %}
+
+<style>
+.equip-tracking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: .75rem;
+}
+@media (max-width: 576px) {
+  .equip-tracking-grid { grid-template-columns: 1fr; }
+}
+.track-card {
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.track-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .7rem .85rem .35rem;
+}
+.track-biomed code {
+  font-size: .78rem;
+  background: var(--navy-50);
+  color: var(--navy);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.track-status { line-height: 1; }
+.track-name {
+  padding: 0 .85rem .5rem;
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-soft);
+}
+.track-details { padding: .35rem .85rem; flex: 1; }
+.track-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .25rem 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: .78rem;
+}
+.track-row:last-child { border-bottom: none; }
+.track-label {
+  color: var(--text-muted);
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+.track-value { text-align: right; font-weight: 500; color: var(--text); }
+.track-value.dest {
+  background: #f3e8ff;
+  border: 1px solid #d8b4fe;
+  color: #7c3aed;
+  padding: .1rem .5rem;
+  border-radius: 4px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.track-actions {
+  padding: .6rem .85rem;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAll() {
+  var checked = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.track-check').forEach(function(cb) { cb.checked = checked; });
+  updateBulk();
+}
+function updateBulk() {
+  var c = document.querySelectorAll('.track-check:checked').length;
+  document.getElementById('selCount').textContent = c;
+  document.getElementById('bulkCheckinBtn').disabled = c === 0;
+}
+function bulkCheckin() {
+  var checked = document.querySelectorAll('.track-check:checked');
+  if (checked.length === 0) return;
+  var staffHidden = document.getElementById('bulkStaffHidden').value;
+  if (!staffHidden) { alert('Please type and select an employee ID for check-in'); return; }
+  var rs = document.getElementById('bulkReturnStatus').value;
+  var notes = document.getElementById('bulkNotes').value.trim();
+  if (!confirm('Check in ' + checked.length + ' selected equipment as ' + rs + '?')) return;
+  var container = document.getElementById('bulkIds');
+  container.innerHTML = '';
+  checked.forEach(function(cb) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'ids'; inp.value = cb.value;
+    container.appendChild(inp);
+  });
+  document.getElementById('bulkStaffField').value = staffHidden;
+  document.getElementById('bulkReturnField').value = rs;
+  document.getElementById('bulkNotesField').value = notes;
+  document.getElementById('bulkForm').submit();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  staffAC('bulkCheckinStaff', 'bulkCheckinAC', 'bulkStaffHidden');
+});
+</script>
+{% endblock %}

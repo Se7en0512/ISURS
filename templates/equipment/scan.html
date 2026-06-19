@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Fast Scan</h2>
+    <p class="subtitle">Scan QR codes to check out or inspect equipment</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px">
+    <a href="{{ url_for('equipment_dashboard') }}" class="btn btn-glove btn-outline-secondary btn-sm">Dashboard</a>
+    <a href="{{ url_for('equipment_list') }}" class="btn btn-glove btn-outline-secondary btn-sm">Equipment List</a>
+  </div>
+</div>
+
+<div class="card card--flush mb-3 no-print">
+  <div class="card-body" style="padding:.75rem 1rem">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-sm btn-glove {{ 'btn-primary' if mode != 'inspection' else 'btn-outline-secondary' }} btn-square" onclick="setMode('checkout')" id="modeCheckout">↪ Check Out</button>
+      <button class="btn btn-sm btn-glove {{ 'btn-primary' if mode == 'inspection' else 'btn-outline-secondary' }} btn-square" onclick="setMode('inspection')" id="modeInspect">✓ Inspection</button>
+      <button class="btn btn-sm btn-glove btn-outline-secondary btn-square" onclick="toggleQuickMode()" id="modeQuick" title="Quick mode — skip staff entry">⚡ Quick</button>
+    </div>
+    <div id="checkoutFields" style="display:{{ 'none' if mode == 'inspection' else 'block' }}">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:.78rem;font-weight:500;white-space:nowrap">Staff ID:</label>
+            <div class="staff-ac-wrap">
+              <input id="staffName" class="form-control form-control-glove" placeholder="Employee ID" autocomplete="off" style="min-width:200px" value="{{ current_user.employee_id ~ ' — ' ~ current_user.full_name if current_user else '' }}">
+              <div class="staff-ac-dropdown" id="staffAC"></div>
+            </div>
+          </div>
+          <div id="staffError" class="field-error" style="display:none;font-size:.72rem;color:var(--red);margin-top:2px">Please select a valid employee ID</div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:.78rem;font-weight:500;white-space:nowrap">Destination:</label>
+            <input id="destField" class="form-control form-control-glove" placeholder="e.g. ER, ICU">
+          </div>
+          <div id="destError" class="field-error" style="display:none;font-size:.72rem;color:var(--red);margin-top:2px">Destination required</div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:.78rem;font-weight:500;white-space:nowrap">Purpose:</label>
+            <input id="purposeField" class="form-control form-control-glove" placeholder="e.g. Use, Transfer">
+          </div>
+          <div id="purposeError" class="field-error" style="display:none;font-size:.72rem;color:var(--red);margin-top:2px">Purpose required</div>
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:.72rem;color:var(--amber)">⚠ Creates movement log + sets status to LOANED</div>
+    </div>
+    <div id="inspectFields" style="display:{{ 'block' if mode == 'inspection' else 'none' }}">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:.78rem;font-weight:500;white-space:nowrap">Inspected By:</label>
+            <div class="staff-ac-wrap">
+              <input id="staffName2" class="form-control form-control-glove" placeholder="Employee ID" autocomplete="off" style="min-width:200px" value="{{ current_user.employee_id ~ ' — ' ~ current_user.full_name if current_user else '' }}">
+              <div class="staff-ac-dropdown" id="staffAC2"></div>
+            </div>
+          </div>
+          <div id="staffError2" class="field-error" style="display:none;font-size:.72rem;color:var(--red);margin-top:2px">Please select a valid employee ID</div>
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:.72rem;color:var(--text-muted)">Set status per item in the table below</div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+      <div id="sessionStatus" style="font-size:.78rem;color:var(--green);font-weight:500">● Ready to scan</div>
+      <button class="btn btn-sm btn-glove btn-outline-secondary btn-square" onclick="resetSession()" style="margin-left:auto">↺ Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="equip-content" style="margin-bottom:1rem">
+  <div class="card card--bordered no-print">
+    <div class="card-header">
+      <span>Scanner</span>
+      <button id="camBtn" class="btn btn-sm btn-outline-secondary btn-pill btn-glove" onclick="toggleCamera()">📷 Camera</button>
+    </div>
+    <div class="card-body" style="padding:.75rem 1rem">
+      <div id="camPreview" style="display:none;margin-bottom:10px;position:relative;background:#000;border-radius:6px;overflow:hidden;max-height:220px">
+        <video id="video" playsinline style="width:100%;display:block"></video>
+        <canvas id="canvas" style="display:none"></canvas>
+        <div id="camOverlay" style="position:absolute;top:0;left:0;right:0;bottom:0;border:3px solid rgba(255,255,255,.3);border-radius:6px;pointer-events:none"></div>
+      </div>
+      <input id="scanInput" type="text" class="form-control form-control-glove" placeholder="Scan or type biomedical number..." autofocus style="font-family:'Consolas',monospace;font-size:1rem;letter-spacing:1px">
+      <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap">
+        <div><span style="font-size:.72rem;color:var(--text-muted)">Unique</span><br><span id="statUnique" style="font-size:1.5rem;font-weight:700;color:var(--green)">0</span></div>
+        <div><span style="font-size:.72rem;color:var(--text-muted)">Duplicates</span><br><span id="statDup" style="font-size:1.5rem;font-weight:700;color:var(--amber)">0</span></div>
+        <div><span style="font-size:.72rem;color:var(--text-muted)">Not Found</span><br><span id="statNF" style="font-size:1.5rem;font-weight:700;color:var(--red)">0</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card card--alt no-print">
+    <div class="card-header"><span>Last Scanned</span></div>
+    <div class="card-body" id="lastScanned" style="padding:.75rem 1rem;min-height:80px">
+      <div style="color:var(--text-muted);font-size:.82rem">Waiting for scan...</div>
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush no-print">
+  <div class="card-header">
+    <span>Scanned Items</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-glove btn-primary btn-pill" onclick="finishSession()" id="finishBtn">✓ Finish</button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle" id="scanTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Biomed</th>
+            <th>Equipment</th>
+            <th>Current Status</th>
+            <th id="statusColHeader" style="display:none">New Status</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody id="scanTableBody">
+          <tr><td colspan="6" class="text-center text-muted" style="padding:2rem">No items scanned yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<form id="finishForm" method="POST" action="{{ url_for('equipment_fastscan_finish') }}" style="display:none">
+  <div id="finishIds"></div>
+  <div id="finishStatuses"></div>
+  <input type="hidden" name="scanned_by" id="finishStaff">
+  <input type="hidden" name="destination" id="finishDest">
+  <input type="hidden" name="purpose" id="finishPurpose">
+  <input type="hidden" name="mode" id="finishMode">
+  <input type="hidden" id="staffHidden">
+  <input type="hidden" id="staffHidden2">
+</form>
+
+<script src="{{ url_for('static', filename='lib/jsqr.js') }}"></script>
+<script>
+var scanMode = '{{ "inspection" if mode == "inspection" else "checkout" }}';
+var scanned = [];        // {id, biomed, name, status, location, newStatus}
+var scannedSet = {};
+var dupCount = 0;
+var nfCount = 0;
+var scanInput = document.getElementById('scanInput');
+
+function setMode(m) {
+  scanMode = m;
+  document.getElementById('modeCheckout').className = 'btn btn-sm btn-glove ' + (m === 'checkout' ? 'btn-primary' : 'btn-outline-secondary') + ' btn-square';
+  document.getElementById('modeInspect').className = 'btn btn-sm btn-glove ' + (m === 'inspection' ? 'btn-primary' : 'btn-outline-secondary') + ' btn-square';
+  document.getElementById('checkoutFields').style.display = m === 'inspection' ? 'none' : 'block';
+  document.getElementById('inspectFields').style.display = m === 'inspection' ? 'block' : 'none';
+  document.getElementById('statusColHeader').style.display = m === 'inspection' ? '' : 'none';
+  renderTable();
+}
+
+scanInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    var code = scanInput.value.trim().toUpperCase();
+    scanInput.value = '';
+    if (code) processScan(code);
+  }
+});
+
+// No forced focus — nurse can click other fields freely
+
+function processScan(code) {
+  if (scannedSet[code]) {
+    dupCount++; updateStats(); showLast(code, 'Duplicate', 'var(--amber)'); beep(false); return;
+  }
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/equipment/fastscan/lookup', true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      var r = JSON.parse(xhr.responseText);
+      if (r.found) {
+        scanned.push({id: r.id, biomed: r.biomed, name: r.name, status: r.status, location: r.location, newStatus: r.status});
+        scannedSet[r.biomed] = true;
+        updateStats(); renderTable(); showLast(r.biomed, r.name, 'var(--green)'); beep(true);
+      } else {
+        nfCount++; updateStats(); showLast(code, 'Not found', 'var(--red)'); beep(false);
+      }
+    }
+  };
+  xhr.send('code=' + encodeURIComponent(code));
+}
+
+// ── Audio beep (no external file needed) ──
+var audioCtx = null;
+function beep(success) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = success ? 1200 : 300;
+    gain.gain.value = 0.15;
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (success ? 0.1 : 0.3));
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + (success ? 0.1 : 0.3));
+  } catch(e) {}
+}
+
+function updateStats() {
+  document.getElementById('statUnique').textContent = scanned.length;
+  document.getElementById('statDup').textContent = dupCount;
+  document.getElementById('statNF').textContent = nfCount;
+}
+
+function renderTable() {
+  var tbody = document.getElementById('scanTableBody');
+  if (scanned.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:2rem">No items scanned yet</td></tr>';
+    return;
+  }
+  var h = '';
+  scanned.forEach(function(s, i) {
+    var badge = '';
+    if (s.status === 'WORKING') badge = '<span class="badge bg-success">Working</span>';
+    else if (s.status === 'MISSING') badge = '<span class="badge bg-danger">Missing</span>';
+    else if (s.status === 'LOANED') badge = '<span class="badge bg-purple">Loaned</span>';
+    else if (s.status === 'MAINTENANCE') badge = '<span class="badge bg-warning" style="color:#1a1a2e">Maint</span>';
+    else badge = '<span class="badge bg-secondary">' + esc(s.status) + '</span>';
+    var statusDD = '';
+    if (scanMode === 'inspection') {
+      var opts = ['WORKING', 'MAINTENANCE', 'MISSING', 'CONDEMNED'];
+      statusDD = safeHTML`<select class="form-select form-select-sm" style="font-size:.72rem;padding:.15rem .3rem;width:auto;min-width:90px;display:inline-block" data-idx="${i}">`;
+      opts.forEach(function(o) {
+        statusDD += '<option value="' + o + '" ' + (s.newStatus === o ? 'selected' : '') + '>' + o + '</option>';
+      });
+      statusDD += '</select>';
+    }
+    h += safeHTML`<tr><td>${i+1}</td><td><code>${s.biomed}</code></td><td>${s.name}</td><td>${badge}</td>`;
+    if (scanMode === 'inspection') h += '<td>' + statusDD + '</td>';
+    h += safeHTML`<td>${s.location || '—'}</td></tr>`;
+  });
+  tbody.innerHTML = h;
+  // Re-bind inspection status change handlers
+  if (scanMode === 'inspection') {
+    tbody.querySelectorAll('select[data-idx]').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        scanned[parseInt(this.getAttribute('data-idx'))].newStatus = this.value;
+      });
+    });
+  }
+}
+
+function showLast(biomed, label, color) {
+  document.getElementById('lastScanned').innerHTML = safeHTML`<div style="font-size:1.1rem;font-weight:600;color:${color}"><code>${biomed}</code> ${label}</div>`;
+}
+
+function showError(id, msg) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+function hideErrors() {
+  document.querySelectorAll('.field-error').forEach(function(e) { e.style.display = 'none'; });
+}
+
+function finishSession() {
+  hideErrors();
+  if (scanned.length === 0) { showError('staffError', 'No items scanned yet'); return; }
+  var container = document.getElementById('finishIds');
+  var statusContainer = document.getElementById('finishStatuses');
+  container.innerHTML = '';
+  statusContainer.innerHTML = '';
+  document.getElementById('finishMode').value = scanMode;
+
+  if (scanMode === 'inspection') {
+    var staffHidden = document.getElementById('staffHidden2').value;
+    if (!staffHidden) { showError('staffError2', 'Please select a valid employee ID'); return; }
+    scanned.forEach(function(s) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'ids'; inp.value = s.id;
+      container.appendChild(inp);
+      var st = document.createElement('input');
+      st.type = 'hidden'; st.name = 'statuses'; st.value = s.newStatus || s.status;
+      statusContainer.appendChild(st);
+    });
+    document.getElementById('finishStaff').value = staffHidden;
+    if (!confirm('Update ' + scanned.length + ' equipment(s) with selected statuses?')) return;
+  } else {
+    var staffHidden = document.getElementById('staffHidden').value;
+    if (!staffHidden) { showError('staffError', 'Please select a valid employee ID'); return; }
+    var dest = document.getElementById('destField').value.trim();
+    var purpose = document.getElementById('purposeField').value.trim();
+    if (!dest) { showError('destError', 'Destination is required'); return; }
+    if (!purpose) { showError('purposeError', 'Purpose is required'); return; }
+    scanned.forEach(function(s) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'ids'; inp.value = s.id;
+      container.appendChild(inp);
+    });
+    document.getElementById('finishStaff').value = staffHidden;
+    document.getElementById('finishDest').value = dest;
+    document.getElementById('finishPurpose').value = purpose;
+    if (!confirm('Check out ' + scanned.length + ' equipment(s) to ' + dest + '?')) return;
+  }
+  localStorage.removeItem(SAVE_KEY);
+  document.getElementById('finishForm').submit();
+}
+
+function resetSession() {
+  if (camActive) stopCamera();
+  if (scanned.length > 0 && !confirm('Reset session? Scanned items will be lost.')) return;
+  scanned = []; scannedSet = {}; dupCount = 0; nfCount = 0;
+  updateStats(); renderTable();
+  document.getElementById('lastScanned').innerHTML = '<div style="color:var(--text-muted);font-size:.82rem">Waiting for scan...</div>';
+}
+
+// ── Camera QR Scanning ──
+var camStream = null, camInterval = null, lastCode = '', camActive = false;
+function toggleCamera() {
+  var btn = document.getElementById('camBtn');
+  var preview = document.getElementById('camPreview');
+  if (camActive) { stopCamera(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('Camera not supported'); return; }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 640, height: 480 } })
+    .then(function(stream) {
+      camStream = stream; camActive = true; preview.style.display = 'block';
+      btn.textContent = '✕ Stop Camera'; btn.className = 'btn btn-sm btn-danger btn-pill btn-glove';
+      var video = document.getElementById('video'); video.srcObject = stream; video.play();
+      camInterval = setInterval(scanFrame, 500);
+    }).catch(function(err) { alert('Camera error: ' + err.message); });
+}
+function stopCamera() {
+  document.getElementById('camBtn').textContent = '📷 Camera';
+  document.getElementById('camBtn').className = 'btn btn-sm btn-outline-secondary btn-pill btn-glove';
+  document.getElementById('camPreview').style.display = 'none';
+  camActive = false;
+  if (camInterval) { clearInterval(camInterval); camInterval = null; }
+  if (camStream) { camStream.getTracks().forEach(function(t) { t.stop(); }); camStream = null; }
+}
+function scanFrame() {
+  if (!camActive) return;
+  var video = document.getElementById('video'), canvas = document.getElementById('canvas');
+  if (video.readyState < 2) return;
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  var ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0);
+  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  try {
+    var code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code && code.data && code.data !== lastCode) {
+      lastCode = code.data;
+      var raw = code.data.trim().toUpperCase();
+      if (raw.length > 2) { processScan(raw); document.getElementById('camOverlay').style.borderColor = 'rgba(22,163,74,.6)'; setTimeout(function() { document.getElementById('camOverlay').style.borderColor = 'rgba(255,255,255,.3)'; }, 300); }
+    }
+  } catch(e) {}
+}
+
+// ── Auto-save draft ──
+var SAVE_KEY = 'pulse_fastscan_draft';
+function saveDraft() {
+  var data = {
+    mode: scanMode, staff: document.getElementById('staffName').value,
+    staff2: document.getElementById('staffName2').value,
+    destination: document.getElementById('destField').value,
+    purpose: document.getElementById('purposeField').value,
+    scanned: scanned, scannedKeys: Object.keys(scannedSet),
+    dupCount: dupCount, nfCount: nfCount, savedAt: new Date().toISOString()
+  };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function loadDraft() {
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    var data = JSON.parse(raw);
+    var age = (new Date() - new Date(data.savedAt)) / 1000 / 60;
+    if (age > 1440) { localStorage.removeItem(SAVE_KEY); return false; }
+    if (data.scanned && data.scanned.length > 0) {
+      if (!confirm('Restore session with ' + data.scanned.length + ' scanned items from ' + Math.round(age) + ' min ago?')) return false;
+      if (data.mode) setMode(data.mode);
+      scanned = data.scanned; scannedSet = {};
+      (data.scannedKeys || []).forEach(function(k) { scannedSet[k] = true; });
+      dupCount = data.dupCount || 0; nfCount = data.nfCount || 0;
+      if (data.staff) document.getElementById('staffName').value = data.staff;
+      if (data.staff2) document.getElementById('staffName2').value = data.staff2;
+      if (data.destination) document.getElementById('destField').value = data.destination;
+      if (data.purpose) document.getElementById('purposeField').value = data.purpose;
+      updateStats(); renderTable();
+      document.getElementById('sessionStatus').textContent = '● Restored from draft';
+      localStorage.removeItem(SAVE_KEY);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+function autoSave() { if (scanned.length > 0 || dupCount > 0 || nfCount > 0) saveDraft(); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-fill staff from logged-in user
+  {% if current_user %}
+  document.getElementById('staffHidden').value = '{{ current_user.employee_id }}';
+  document.getElementById('staffHidden2').value = '{{ current_user.employee_id }}';
+  {% endif %}
+
+  scanInput.focus();
+  if (!loadDraft()) { setMode(scanMode); }
+  staffAC('staffName', 'staffAC', 'staffHidden');
+  staffAC('staffName2', 'staffAC2', 'staffHidden2');
+  scanInput.addEventListener('paste', function(e) {
+    setTimeout(function() {
+      var code = scanInput.value.trim().toUpperCase();
+      if (code.length > 5 && !code.includes(' ')) { processScan(code); scanInput.value = ''; }
+    }, 50);
+  });
+  setInterval(autoSave, 5000);
+});
+
+var _origProcessScan = processScan;
+processScan = function(code) { _origProcessScan(code); setTimeout(saveDraft, 200); };
+
+var _origReset = resetSession;
+resetSession = function() { _origReset(); localStorage.removeItem(SAVE_KEY); };
+
+// ── Quick Mode — remembers staff ID ──
+var STAFF_KEY = 'pulse_scan_staff';
+function saveStaffId(id) {
+  if (id) localStorage.setItem(STAFF_KEY, id);
+}
+function loadStaffId() { return localStorage.getItem(STAFF_KEY) || ''; }
+
+function toggleQuickMode() {
+  var btn = document.getElementById('modeQuick');
+  var isQuick = btn.classList.toggle('btn-primary');
+  btn.classList.toggle('btn-outline-secondary');
+  var sid = loadStaffId();
+  if (isQuick && sid) {
+    // Fill both staff fields
+    var staffInput = document.getElementById('staffName');
+    var staffHidden = document.getElementById('staffHidden');
+    staffInput.value = sid;
+    staffHidden.value = sid;
+    var staffInput2 = document.getElementById('staffName2');
+    var staffHidden2 = document.getElementById('staffHidden2');
+    staffInput2.value = sid;
+    staffHidden2.value = sid;
+    document.getElementById('sessionStatus').textContent = '● Quick mode (' + sid + ')';
+  } else if (!isQuick) {
+    document.getElementById('sessionStatus').textContent = '● Ready to scan';
+  }
+}
+
+// Save staff ID on selection
+document.addEventListener('click', function(e) {
+  var item = e.target.closest('.staff-ac-item');
+  if (item) {
+    setTimeout(function() {
+      var hidden = document.getElementById('staffHidden');
+      var hidden2 = document.getElementById('staffHidden2');
+      var sid = (hidden && hidden.value) || (hidden2 && hidden2.value) || '';
+      if (sid) saveStaffId(sid);
+    }, 50);
+  }
+});
+
+// Restore quick mode staff on load
+var savedStaff = loadStaffId();
+if (savedStaff) {
+  document.getElementById('staffName').value = savedStaff;
+  document.getElementById('staffHidden').value = savedStaff;
+  document.getElementById('staffName2').value = savedStaff;
+  document.getElementById('staffHidden2').value = savedStaff;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;justify-content:center;align-items:center;min-height:50vh;flex-direction:column;gap:12px;text-align:center">
+  <div style="font-size:4rem;font-weight:700;color:var(--red);line-height:1">403</div>
+  <div style="font-size:1.1rem;font-weight:600">Access Denied</div>
+  <div style="font-size:.85rem;color:var(--text-muted);max-width:360px">You do not have permission to access this page. <br>Admin access is required.</div>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-pill btn-sm">Back to Dashboard</a>
+</div>
+{% endblock %}

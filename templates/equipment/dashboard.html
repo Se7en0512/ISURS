@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Equipment Status</h2>
+    <p class="subtitle">Biomedical Equipment &amp; Service Monitoring</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap">
+    <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-primary btn-pill btn-sm btn-glove">Manage Equipment</a>
+    <a href="{{ url_for('equipment_service') }}" class="btn btn-outline-secondary btn-square btn-sm btn-glove">Service Schedule</a>
+    <a href="{{ url_for('equipment_export') }}" class="btn btn-outline-success btn-pill btn-sm btn-glove">Export</a>
+  </div>
+</div>
+
+{% if overdue > 0 or missing > 0 or overdue_checkouts > 0 %}
+<div class="no-print" style="background:var(--red-dim);border-left:4px solid var(--red);border-radius:6px;padding:.65rem 1rem;margin-bottom:1rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  <span style="font-weight:600;font-size:.82rem;color:var(--red)">⚠ Attention needed —</span>
+  {% if overdue > 0 %}<span style="font-size:.78rem;color:var(--red)"><strong>{{ overdue }}</strong> overdue for service</span>{% endif %}
+  {% if missing > 0 %}<span style="font-size:.78rem;color:var(--red)"><strong>{{ missing }}</strong> missing</span>{% endif %}
+  {% if overdue_checkouts > 0 %}<span style="font-size:.78rem;color:var(--red)"><strong>{{ overdue_checkouts }}</strong> checkout(s) >7 days</span>{% endif %}
+  <span style="font-size:.78rem;color:var(--red)">due: <span id="eqDueSoonCount">{{ due_soon }}</span> within 30 days</span>
+</div>
+{% endif %}
+
+<div class="equip-stats">
+  <div class="equip-stat">
+    <div class="stat-val" id="eqTotal">{{ total }}</div>
+    <div class="stat-lbl">Total Equipment</div>
+  </div>
+  <div class="equip-stat">
+    <div class="stat-val" id="eqWorking">{{ working }}</div>
+    <div class="stat-lbl">Working</div>
+  </div>
+  <div class="equip-stat">
+    <div class="stat-val" id="eqMissing">{{ missing }}</div>
+    <div class="stat-lbl">Missing</div>
+  </div>
+  <div class="equip-stat">
+    <div class="stat-val" id="eqCheckedOut">{{ checked_out }}</div>
+    <div class="stat-lbl">Checked Out</div>
+  </div>
+  <div class="equip-stat">
+    <div class="stat-val" id="eqLoaned">{{ loaned }}</div>
+    <div class="stat-lbl">Loaned</div>
+  </div>
+  <div class="equip-stat">
+    <div class="stat-val" id="eqMaint">{{ maintenance }}</div>
+    <div class="stat-lbl">Under Maint</div>
+  </div>
+  <div class="equip-stat">
+    <div class="stat-val" id="eqCondemned">{{ condemned }}</div>
+    <div class="stat-lbl">Condemned</div>
+  </div>
+  <div class="equip-stat" style="background:var(--alt-bg, #f0f4ff)">
+    <div class="stat-val" id="eqCheckoutToday" style="color:var(--purple)">{{ checkout_today }}</div>
+    <div class="stat-lbl">Checked Out Today</div>
+  </div>
+  <div class="equip-stat" style="background:var(--red-dim)">
+    <div class="stat-val" id="eqOverdueCheckouts" style="color:var(--red)">{{ overdue_checkouts }}</div>
+    <div class="stat-lbl">Overdue Checkouts</div>
+  </div>
+</div>
+
+<div class="equip-content">
+  <!-- Left column: chart + status bars -->
+  <div>
+    <div class="card card--bordered" style="margin-bottom:.75rem">
+      <div class="card-header"><span>Equipment Status Overview</span></div>
+      <div class="card-body" style="padding:.75rem">
+        <canvas id="chartEquipStatus" height="170"></canvas>
+      </div>
+    </div>
+    <div class="card card--alt" style="border-radius:8px;border-top:3px solid #7c3aed">
+      <div class="card-header" style="color:#7c3aed"><span>Recently Checked Out</span></div>
+      <div class="card-body" style="padding:.5rem 1rem">
+        {% if recent_out %}
+          {% for m in recent_out %}
+          {% set e = m.equipment %}
+          <div style="padding:.4rem 0;border-bottom:1px solid var(--border-soft);font-size:.78rem;display:flex;gap:6px;align-items:flex-start">
+            <span style="color:#7c3aed;font-size:.7rem;margin-top:1px">→</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <code style="font-size:.7rem">{{ e.biomed }}</code>
+                <span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.name }}</span>
+              </div>
+              <div style="font-size:.7rem;color:var(--text-muted);margin-top:1px">
+                {{ m.checked_out_by }} → {{ m.destination }}
+                <span style="float:right">{{ m.checked_out_at.strftime('%m/%d %H:%M') }}</span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          {% if checked_out > 6 %}
+          <div style="padding:.35rem 0;text-align:center">
+            <a href="{{ url_for('equipment_tracking') }}" class="btn btn-sm btn-outline-purple btn-pill btn-glove" style="font-size:.72rem">View All ({{ checked_out }})</a>
+          </div>
+          {% endif %}
+        {% else %}
+          <div class="empty-state" style="padding:1rem 0"><div class="empty-icon" style="font-size:1.5rem">✓</div><div style="font-size:.8rem">All equipment is on-site</div></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: service alerts -->
+  <div>
+    <div class="card card--bordered card--warn" style="margin-bottom:.75rem;border-top-color:var(--red)">
+      <div class="card-header" style="color:var(--red)">
+        <span>Service Alerts</span>
+        <span class="live-indicator" style="color:var(--red)"><span class="live-dot" style="background:var(--red)"></span> LIVE</span>
+      </div>
+      <div class="card-body" style="padding:.6rem 1rem" id="alertList">
+        {% if overdue == 0 and missing == 0 %}
+          <div class="empty-state" style="padding:.5rem 0"><div class="empty-icon">✓</div><div style="font-size:.8rem">All equipment accounted for</div></div>
+        {% else %}
+          {% for e in overdue_list %}
+          <div class="alert-item">
+            <span class="alert-dot red"></span>
+            <code style="font-size:.72rem">{{ e.biomed }}</code>
+            <span style="flex:1">{{ e.name[:28] }}{% if e.name|length > 28 %}…{% endif %}</span>
+            <span style="font-size:.7rem;color:var(--red);white-space:nowrap">{{ e.next_service_date.strftime('%m/%d') if e.next_service_date else '—' }}</span>
+          </div>
+          {% endfor %}
+          {% for e in (missing_list or []) %}
+          <div class="alert-item">
+            <span class="alert-dot" style="background:var(--red)"></span>
+            <code style="font-size:.72rem">{{ e.biomed }}</code>
+            <span style="flex:1">{{ e.name[:28] }}{% if e.name|length > 28 %}…{% endif %}</span>
+            <span style="font-size:.7rem;color:var(--red)">MISSING</span>
+          </div>
+          {% endfor %}
+          {% if overdue == 0 and missing == 0 %}
+          <div class="empty-state" style="padding:.5rem 0"><div class="empty-icon">✓</div><div style="font-size:.8rem">All equipment service is up to date</div></div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% if due_soon_list %}
+    <div class="card card--bordered" style="margin-bottom:.75rem;border-top-color:#8a6d00">
+      <div class="card-header" style="color:#8a6d00">
+        <span>Service Due Soon ({{ due_soon }})</span>
+      </div>
+      <div class="card-body" style="padding:.6rem 1rem">
+        {% for e in due_soon_list %}
+        <div class="alert-item">
+          <span class="alert-dot" style="background:#eab308"></span>
+          <code style="font-size:.72rem">{{ e.biomed }}</code>
+          <span style="flex:1">{{ e.name[:28] }}{% if e.name|length > 28 %}…{% endif %}</span>
+          <span style="font-size:.7rem;color:#8a6d00;white-space:nowrap">{{ e.next_service_date.strftime('%m/%d') if e.next_service_date else '—' }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if top_equipment %}
+    <div class="card card--alt" style="margin-bottom:.75rem;border-radius:8px;border-left:3px solid #0d9488">
+      <div class="card-header" style="color:#0d9488"><span>Most Checked-Out</span></div>
+      <div class="card-body" style="padding:.5rem 1rem">
+        {% for eq, cnt in top_equipment %}
+        <div style="padding:.3rem 0;border-bottom:1px solid var(--border-soft);font-size:.78rem;display:flex;gap:6px;align-items:center">
+          <span style="font-weight:600;font-size:.7rem;color:#0d9488;min-width:18px">#{{ loop.index }}</span>
+          <code style="font-size:.7rem">{{ eq.biomed }}</code>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ eq.name[:24] }}</span>
+          <span style="font-size:.7rem;font-weight:600;color:#0d9488">{{ cnt }}×</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    <div class="card card--alt" style="border-radius:8px">
+      <div class="card-body" style="padding:.75rem 1rem">
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a href="{{ url_for('equipment_tracking') }}" class="btn btn-sm btn-outline-purple btn-pill btn-glove" style="font-size:.73rem">📍 Tracking</a>
+          <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-primary btn-pill btn-glove" style="font-size:.73rem">View Inventory</a>
+          <a href="{{ url_for('equipment_qr') }}" class="btn btn-sm btn-outline-secondary btn-pill btn-glove" style="font-size:.73rem">QR Stickers</a>
+          <button class="btn btn-sm btn-success btn-square btn-glove" style="font-size:.73rem" data-bs-toggle="modal" data-bs-target="#addEquipModal">+ Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card-header">
+    <span>Recent Activity</span>
+    <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-secondary btn-pill btn-glove">View All</a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle" id="eqRecentTable">
+        <thead>
+          <tr>
+            <th>Equipment</th>
+            <th>Action</th>
+            <th>By</th>
+            <th style="text-align:right">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent %}
+          <tr>
+            <td><code>{{ r.equipment.biomed }}</code> {{ r.equipment.name[:35] }}{% if r.equipment.name|length > 35 %}…{% endif %}</td>
+            <td>
+              {% if r.action == 'ADDED' %}
+                <span class="badge bg-success">Added</span>
+              {% elif r.action == 'SCANNED' %}
+                <span class="badge bg-purple">Scanned</span>
+              {% elif r.action == 'STATUS_CHANGED' %}
+                <span class="badge bg-warning" style="color:#1a1a2e">Status</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ r.action }}</span>
+              {% endif %}
+            </td>
+            <td>{{ r.scanned_by or '—' }}</td>
+            <td style="text-align:right;white-space:nowrap;font-size:.75rem;color:var(--text-muted)">{{ r.created_at.strftime('%m/%d %H:%M') }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted" style="padding:2rem">No activity yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Modal -->
+<div class="modal fade" id="addEquipModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('equipment_add') }}">
+      <div class="modal-content">
+        <div class="modal-header"><h5 style="margin:0;font-size:1rem">Add Equipment</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+          <div style="display:grid;gap:.75rem">
+            <div><label class="form-label">Biomedical Number *</label><input name="biomed" class="form-control form-control-glove" placeholder="e.g. EQM-001" required></div>
+            <div><label class="form-label">Equipment Name *</label><input name="name" class="form-control form-control-glove" placeholder="e.g. Patient Monitor" required></div>
+            <div><label class="form-label">Status</label>
+              <select name="status" class="form-select form-select-glove">
+                <option value="WORKING">Working</option>
+                <option value="MISSING">Missing</option>
+                <option value="LOANED">Loaned</option>
+                <option value="MAINTENANCE">Under Maintenance</option>
+                <option value="CONDEMNED">Condemned</option>
+              </select>
+            </div>
+            <div><label class="form-label">Location</label><input name="location" class="form-control form-control-glove" placeholder="e.g. ER Room 3"></div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary btn-glove">Add</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var chartEq;
+function initChart(data) {
+  var c = document.getElementById('chartEquipStatus');
+  if (!c) return;
+  chartEq = new Chart(c, {
+    type: 'doughnut',
+    data: {
+      labels: ['Working','Missing','Loaned','Maintenance','Condemned'],
+      datasets: [{
+        data: [data.working, data.missing, data.loaned, data.maintenance, data.condemned],
+        backgroundColor: ['#16a34a','#dc2626','#7c3aed','#eab308','#5a5a7a'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      cutout: '66%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 8, boxWidth: 8, font: { size: 9 } } }
+      }
+    }
+  });
+}
+function updateDashboard(d) {
+  document.getElementById('eqTotal').textContent = d.total;
+  document.getElementById('eqWorking').textContent = d.working;
+  document.getElementById('eqMissing').textContent = d.missing;
+  document.getElementById('eqCheckedOut').textContent = d.checked_out;
+  document.getElementById('eqLoaned').textContent = d.loaned;
+  document.getElementById('eqMaint').textContent = d.maintenance;
+  document.getElementById('eqCondemned').textContent = d.condemned;
+  document.getElementById('eqDueSoonCount').textContent = d.due_soon_count;
+  var cto = document.getElementById('eqCheckoutToday');
+  if (cto) cto.textContent = d.checkout_today;
+  var oco = document.getElementById('eqOverdueCheckouts');
+  if (oco) oco.textContent = d.overdue_checkouts;
+  if (chartEq) {
+    chartEq.data.datasets[0].data = [d.working, d.missing, d.loaned, d.maintenance, d.condemned];
+    chartEq.update();
+  }
+  var al = document.getElementById('alertList');
+  if (al) {
+    var h = '';
+    if (d.overdue && d.overdue.length) {
+      d.overdue.forEach(function(e) {
+        h += safeHTML`<div class="alert-item"><span class="alert-dot red"></span><code style="font-size:.72rem">${e.biomed}</code><span style="flex:1">${e.name.length > 28 ? e.name.slice(0,28)+'...' : e.name}</span><span style="font-size:.7rem;color:var(--red);white-space:nowrap">${e.next_service}</span></div>`;
+      });
+    }
+    if (!h) h = '<div class="empty-state" style="padding:.5rem 0"><div class="empty-icon">✓</div><div style="font-size:.8rem">All equipment accounted for</div></div>';
+    al.innerHTML = h;
+  }
+}
+var _lastOverdue = {{ overdue }};
+var _lastMissing = {{ missing }};
+function pollEq() {
+  csrfFetch('/api/equipment/dashboard').then(function(r){return r.json()}).then(function(d){
+    updateDashboard(d);
+    if (d.overdue_count > _lastOverdue && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification('PULSE - Service Alert', { body: d.overdue_count + ' equipment overdue for service', icon: '/static/favicon.svg' });
+    }
+    if (d.missing > _lastMissing && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification('PULSE - Missing Alert', { body: d.missing + ' equipment marked as missing', icon: '/static/favicon.svg' });
+    }
+    _lastOverdue = d.overdue_count;
+    _lastMissing = d.missing;
+  }).catch(function(){});
+}
+document.addEventListener('DOMContentLoaded', function() {
+  if ('Notification' in window && Notification.permission !== 'denied' && Notification.permission !== 'granted') {
+    Notification.requestPermission();
+  }
+  csrfFetch('/api/equipment/dashboard').then(function(r){return r.json()}).then(function(d){initChart(d);updateDashboard(d)}).catch(function(){});
+  setInterval(pollEq, 10000);
+});
+</script>
+{% endblock %}

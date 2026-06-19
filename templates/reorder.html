@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Reorder Suggestions</h2>
+    <p class="subtitle">Based on report activity in the last 90 days</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px">
+    <button class="btn btn-sm btn-outline-secondary btn-square btn-glove" onclick="window.print()">Print</button>
+  </div>
+</div>
+
+{% if suggestions %}
+<div class="card card--accent mb-3" style="border-left-color:var(--teal)">
+  <div class="card-body" style="padding:.75rem 1rem">
+    <p style="margin:0;font-size:.82rem;color:var(--text-soft)">
+      <strong>{{ suggestions|length }}</strong> item{% if suggestions|length != 1 %}s{% endif %} need reordering.
+      These items have been reported as Shortage or Not Available at least 2 times in the last 3 months.
+    </p>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--light sortable" id="reorderTable">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Item</th>
+            <th>Store</th>
+            <th class="text-center" style="width:90px">Stock</th>
+            <th class="text-center" style="width:80px">Critical</th>
+            <th class="text-center" style="width:70px">Status</th>
+            <th class="text-center" style="width:80px">Incidents</th>
+            <th class="text-center" style="width:120px">Suggested</th>
+            <th class="no-print text-center" style="width:100px">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in suggestions %}
+          <tr id="row-{{ s.id }}" data-id="{{ s.id }}">
+            <td><code>{{ s.code }}</code></td>
+            <td><a href="{{ url_for('item_history', id=s.id) }}" style="color:var(--teal);text-decoration:none">{{ s.name }}</a></td>
+            <td>{{ s.store }}</td>
+            <td class="text-center" id="stock-{{ s.id }}">{{ s.stock }}</td>
+            <td class="text-center">{{ s.critical }}</td>
+            <td class="text-center"><span class="badge {{ 'bg-danger' if s.stock <= 0 else 'bg-warning' if s.stock <= s.critical else 'bg-success' }}" id="status-{{ s.id }}">{{ 'Out' if s.stock <= 0 else 'Low' if s.stock <= s.critical else 'OK' }}</span></td>
+            <td class="text-center">{{ s.incidents }} <span style="font-size:.7rem;color:var(--text-muted)">(S:{{ s.shortages }} U:{{ s.unas }})</span></td>
+            <td class="text-center"><strong style="color:var(--teal);font-size:1rem">{{ s.suggested }}</strong></td>
+            <td class="text-center no-print">
+              <button class="btn btn-glove btn-sm btn-outline-primary btn-restock" data-id="{{ s.id }}" data-name="{{ s.name }}" data-stock="{{ s.stock }}" data-critical="{{ s.critical }}" data-suggested="{{ s.suggested }}" style="min-height:44px;font-size:.78rem">Restock</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card card--flat" style="text-align:center;padding:3rem">
+  <p style="font-size:1.1rem;color:var(--text-soft)">No items need reordering right now.</p>
+  <p style="font-size:.82rem;color:var(--text-muted)">Items are suggested for reorder when they have 2+ shortage/NA incidents in the last 90 days.</p>
+</div>
+{% endif %}
+
+<!-- Restock Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 style="margin:0;font-size:1rem" id="restockModalLabel">Restock Item</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:.82rem;color:var(--text-soft);margin-bottom:.75rem" id="restockItemName"></p>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;font-size:.78rem;color:var(--text-muted)">
+          <span>Current: <strong id="restockCurrentStock">0</strong></span>
+          <span>Critical: <strong id="restockCriticalLevel">0</strong></span>
+        </div>
+        <label class="form-label" for="restockQty">Quantity to add</label>
+        <input type="number" id="restockQty" class="form-control form-control-glove" min="1" value="" required autofocus style="min-height:48px;font-size:1.1rem;text-align:center">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-glove btn-outline-secondary" data-bs-dismiss="modal" style="min-height:44px">Cancel</button>
+        <button class="btn btn-glove btn-primary" id="restockConfirmBtn" style="min-height:44px">Add Stock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="restockToast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.7rem 1.1rem;box-shadow:0 4px 20px rgba(0,0,0,.15);display:none;align-items:center;gap:10px;font-size:.85rem;max-width:360px;transition:opacity .2s">
+  <span style="color:var(--teal);font-size:1.2rem">✓</span>
+  <span id="restockToastMsg">Stock updated</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var restockId = null;
+
+document.querySelectorAll('.btn-restock').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    restockId = parseInt(this.getAttribute('data-id'));
+    document.getElementById('restockItemName').textContent = this.getAttribute('data-name');
+    document.getElementById('restockCurrentStock').textContent = this.getAttribute('data-stock');
+    document.getElementById('restockCriticalLevel').textContent = this.getAttribute('data-critical');
+    document.getElementById('restockQty').value = this.getAttribute('data-suggested');
+    new bootstrap.Modal(document.getElementById('restockModal')).show();
+  });
+});
+
+document.getElementById('restockConfirmBtn').addEventListener('click', function() {
+  var qty = parseInt(document.getElementById('restockQty').value);
+  if (!qty || qty < 1) { alert('Enter a valid quantity'); return; }
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+  csrfFetch('/api/reorder/restock/' + restockId, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity: qty })
+  }).then(function(r){ return r.json() }).then(function(d) {
+    if (d.error) { alert(d.error); return; }
+    document.getElementById('stock-' + d.id).textContent = d.stock;
+    var badge = document.getElementById('status-' + d.id);
+    if (d.ok) {
+      badge.className = 'badge bg-success';
+      badge.textContent = 'OK';
+    } else if (d.stock <= 0) {
+      badge.className = 'badge bg-danger';
+      badge.textContent = 'Out';
+    } else {
+      badge.className = 'badge bg-warning';
+      badge.textContent = 'Low';
+    }
+    var rowBtn = document.querySelector('.btn-restock[data-id="' + d.id + '"]');
+    if (rowBtn) rowBtn.setAttribute('data-stock', d.stock);
+    var toast = document.getElementById('restockToast');
+    document.getElementById('restockToastMsg').textContent = 'Added ' + qty + ' — stock is now ' + d.stock;
+    toast.style.display = 'flex';
+    toast.style.opacity = '1';
+    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function(){ toast.style.display = 'none'; }, 300); }, 3000);
+    bootstrap.Modal.getInstance(document.getElementById('restockModal')).hide();
+    btn.disabled = false;
+    btn.textContent = 'Add Stock';
+  }).catch(function() {
+    alert('Failed to restock. Try again.');
+    btn.disabled = false;
+    btn.textContent = 'Add Stock';
+  });
+});
+
+document.getElementById('restockModal').addEventListener('hidden.bs.modal', function() {
+  document.getElementById('restockConfirmBtn').disabled = false;
+  document.getElementById('restockConfirmBtn').textContent = 'Add Stock';
+});
+</script>
+{% endblock %}

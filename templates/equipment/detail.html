@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>{{ eq.biomed }}</h2>
+    <p class="subtitle">{{ eq.name }}</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px">
+    <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary btn-sm">← Back</a>
+    <a href="{{ url_for('equipment_dashboard') }}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+    <button class="btn btn-sm btn-outline-primary btn-square" data-bs-toggle="modal" data-bs-target="#editEquipModal{{ eq.id }}">Edit</button>
+  </div>
+</div>
+
+{% if current_out %}
+<div style="background:var(--teal-dim);border-left:4px solid #7c3aed;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <span style="font-weight:600;font-size:.82rem;color:#7c3aed">📍 Currently OUT</span>
+    <span style="font-size:.78rem">By <strong>{{ current_out.checked_out_by }}</strong></span>
+    <span style="font-size:.78rem">To <strong>{{ current_out.destination }}</strong></span>
+    <span style="font-size:.78rem;color:var(--text-muted)">{{ current_out.checked_out_at.strftime('%b %d, %Y %H:%M') }}</span>
+  </div>
+  <form method="POST" action="{{ url_for('equipment_checkin', id=eq.id) }}" style="margin-top:8px" onsubmit="return validateCheckin()">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="staff-ac-wrap" style="flex:1;min-width:180px">
+        <input id="checkinStaff" class="form-control form-control-sm" placeholder="Employee ID (who is checking in)" autocomplete="off">
+        <div class="staff-ac-dropdown" id="checkinAC"></div>
+      </div>
+      <input type="hidden" name="checked_in_by" id="checkinStaffHidden">
+      <select name="return_status" class="form-select form-select-sm" style="width:auto;min-width:120px">
+        <option value="WORKING">✓ Working</option>
+        <option value="MAINTENANCE">⚙ Needs Repair</option>
+        <option value="CONDEMNED">✕ Condemned</option>
+      </select>
+      <input name="return_notes" class="form-control form-control-sm" placeholder="Notes (optional)" style="width:auto;min-width:140px">
+      <button class="btn btn-sm btn-success btn-pill">↩ Check In</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<div class="equip-content">
+  <div>
+    <!-- Info card -->
+    <div class="card card--bordered" style="margin-bottom:.75rem">
+      <div class="card-header"><span>Equipment Info</span></div>
+      <div class="card-body" style="padding:.75rem 1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Biomedical #</span><div style="font-weight:600;font-size:.95rem">{{ eq.biomed }}</div></div>
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Status</span>
+            <div>{% if eq.id in active_out_ids %}<span class="badge bg-purple">OUT</span>{% else %}
+              {% if eq.status == 'WORKING' %}<span class="badge bg-success">Working</span>
+              {% elif eq.status == 'MISSING' %}<span class="badge bg-danger">Missing</span>
+              {% elif eq.status == 'LOANED' %}<span class="badge bg-purple">Loaned</span>
+              {% elif eq.status == 'MAINTENANCE' %}<span class="badge bg-warning" style="color:#1a1a2e">Maintenance</span>
+              {% elif eq.status == 'CONDEMNED' %}<span class="badge bg-secondary">Condemned</span>
+              {% else %}<span class="badge bg-secondary">{{ eq.status }}</span>{% endif %}
+            {% endif %}</div>
+          </div>
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Location</span><div>{{ eq.location or '—' }}</div></div>
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Last Scanned</span><div>{{ eq.last_scanned_date.strftime('%Y-%m-%d %H:%M') if eq.last_scanned_date else '—' }}</div></div>
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Last Scanned By</span><div>{{ eq.last_scanned_by or '—' }}</div></div>
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Remarks</span><div>{{ eq.remarks or '—' }}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service info -->
+    <div class="card card--flush" style="margin-bottom:.75rem">
+      <div class="card-header"><span>Service Info</span></div>
+      <div class="card-body" style="padding:.75rem 1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Last Service</span><div>{{ eq.last_service_date.strftime('%Y-%m-%d') if eq.last_service_date else '—' }}</div></div>
+          <div><span style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px">Next Service</span>
+            <div>{% if eq.next_service_date %}
+              {% if eq.next_service_date < now() %}<span style="color:var(--red);font-weight:600">{{ eq.next_service_date.strftime('%Y-%m-%d') }} ⚠</span>
+              {% elif (eq.next_service_date - now()).days <= 30 %}<span style="color:#8a6d00;font-weight:500">{{ eq.next_service_date.strftime('%Y-%m-%d') }}</span>
+              {% else %}{{ eq.next_service_date.strftime('%Y-%m-%d') }}{% endif %}
+            {% else %}—{% endif %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Check Out card -->
+    <div class="card card--bordered card--warn" id="checkout" style="margin-bottom:.75rem">
+      <div class="card-header"><span>Check Out Equipment</span></div>
+      <div class="card-body" style="padding:.75rem 1rem">
+        {% if current_out %}
+        <div style="padding:.5rem 0;text-align:center;color:var(--text-muted)">
+          Already checked out. Please check in first.
+        </div>
+        {% elif eq.status in ('CONDEMNED', 'MISSING') %}
+        <div style="padding:.5rem 0;text-align:center;color:var(--text-muted)">
+          Cannot check out equipment with status: {{ eq.status }}
+        </div>
+        {% else %}
+        <form method="POST" action="{{ url_for('equipment_checkout', id=eq.id) }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+            <div>
+              <label class="form-label">Employee ID *</label>
+              <div class="staff-ac-wrap">
+                <input id="checkoutStaff" name="checked_out_by" class="form-control form-control-glove" placeholder="Type employee ID..." autocomplete="off" required>
+                <div class="staff-ac-dropdown" id="checkoutAC"></div>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Source Location</label>
+              <input name="source_location" class="form-control form-control-glove" value="{{ eq.location or '' }}" placeholder="Current location">
+            </div>
+            <div>
+              <label class="form-label">Destination / Room *</label>
+              <input name="destination" class="form-control form-control-glove" placeholder="e.g. ER Room 3, ICU" required>
+            </div>
+            <div>
+              <label class="form-label">Purpose</label>
+              <input name="purpose" class="form-control form-control-glove" placeholder="e.g. Patient use, Transfer">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-purple btn-pill btn-glove" style="margin-top:.75rem">↪ Check Out</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Movement History + Audit Log -->
+  <div>
+    <div class="card card--bordered" style="margin-bottom:.75rem;border-top-color:#7c3aed">
+      <div class="card-header" style="color:#7c3aed"><span>Movement History</span></div>
+      <div class="card-body p-0">
+        <div style="max-height:320px;overflow-y:auto">
+          {% if movements %}
+          <div style="padding:.35rem .75rem">
+          {% for m in movements %}
+            <div style="padding:.5rem 0;border-bottom:1px solid var(--border-soft);font-size:.78rem">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:600">
+                  {% if m.status == 'OUT' %}
+                    <span style="color:#7c3aed">→ Checked Out</span>
+                  {% else %}
+                    <span style="color:var(--green)">← Checked In</span>
+                  {% endif %}
+                </span>
+                <span style="font-size:.68rem;color:var(--text-muted)">{{ m.checked_out_at.strftime('%b %d, %Y %H:%M') }}</span>
+              </div>
+              <div style="color:var(--text-soft);margin-top:2px">
+                {{ m.checked_out_by }} → {{ m.destination }}
+                {% if m.purpose %} | {{ m.purpose }}{% endif %}
+              </div>
+              {% if m.checked_in_at %}
+              <div style="color:var(--text-muted);font-size:.7rem;margin-top:1px">
+                Returned: {{ m.checked_in_at.strftime('%b %d, %Y %H:%M') }}
+              </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:1.5rem 0"><div class="empty-icon">📍</div><div style="font-size:.8rem">No movement records</div></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card card--flush">
+      <div class="card-header"><span>Audit Log</span></div>
+      <div class="card-body p-0">
+        <div style="max-height:320px;overflow-y:auto">
+          {% if logs %}
+          <div style="padding:.35rem .75rem">
+          {% for l in logs %}
+            <div style="padding:.45rem 0;border-bottom:1px solid var(--border-soft);font-size:.75rem;display:flex;gap:6px;align-items:flex-start">
+              <span style="white-space:nowrap;color:var(--text-muted);font-size:.68rem;margin-top:1px">{{ l.created_at.strftime('%m/%d %H:%M') }}</span>
+              <span style="font-weight:500;white-space:nowrap">
+                {% if l.action == 'ADDED' %}<span class="badge bg-success">Added</span>
+                {% elif l.action == 'SCANNED' %}<span class="badge bg-purple">Scan</span>
+                {% elif l.action == 'STATUS_CHANGED' %}<span class="badge bg-warning" style="color:#1a1a2e">Status</span>
+                {% elif l.action == 'CHECKED_OUT' %}<span class="badge bg-purple">OUT</span>
+                {% elif l.action == 'CHECKED_IN' %}<span class="badge bg-success">IN</span>
+                {% else %}<span class="badge bg-secondary">{{ l.action }}</span>{% endif %}
+              </span>
+              <span style="color:var(--text-soft);flex:1">{{ l.notes or '' }}</span>
+              <span style="color:var(--text-muted);font-size:.7rem;white-space:nowrap">{{ l.scanned_by or '' }}</span>
+            </div>
+          {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:1.5rem 0"><div class="empty-icon">📋</div><div style="font-size:.8rem">No audit log entries</div></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editEquipModal{{ eq.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('equipment_edit', id=eq.id) }}">
+      <div class="modal-content">
+        <div class="modal-header"><h5 style="margin:0;font-size:1rem">Edit {{ eq.biomed }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+          <div style="display:grid;gap:.75rem">
+            <div><label class="form-label">Equipment Name</label><input name="name" class="form-control form-control-glove" value="{{ eq.name }}" required></div>
+            <div><label class="form-label">Status</label>
+              <select name="status" class="form-select form-select-glove">
+                <option value="WORKING" {% if eq.status == 'WORKING' %}selected{% endif %}>Working</option>
+                <option value="MISSING" {% if eq.status == 'MISSING' %}selected{% endif %}>Missing</option>
+                <option value="LOANED" {% if eq.status == 'LOANED' %}selected{% endif %}>Loaned</option>
+                <option value="MAINTENANCE" {% if eq.status == 'MAINTENANCE' %}selected{% endif %}>Under Maintenance</option>
+                <option value="CONDEMNED" {% if eq.status == 'CONDEMNED' %}selected{% endif %}>Condemned</option>
+              </select>
+            </div>
+            <div><label class="form-label">Location</label><input name="location" class="form-control form-control-glove" value="{{ eq.location or '' }}"></div>
+            <div><label class="form-label">Remarks</label><textarea name="remarks" class="form-control form-control-glove" rows="2">{{ eq.remarks or '' }}</textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+              <div><label class="form-label">Last Service</label><input name="last_service_date" type="date" class="form-control form-control-glove" value="{{ eq.last_service_date.strftime('%Y-%m-%d') if eq.last_service_date else '' }}"></div>
+              <div><label class="form-label">Next Service</label><input name="next_service_date" type="date" class="form-control form-control-glove" value="{{ eq.next_service_date.strftime('%Y-%m-%d') if eq.next_service_date else '' }}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary btn-glove">Save</button></div>
+      </div>
+    </form>
+  </div>
+</div>
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  staffAC('checkoutStaff', 'checkoutAC', null);
+  staffAC('checkinStaff', 'checkinAC', 'checkinStaffHidden');
+});
+function validateCheckin() {
+  var hidden = document.getElementById('checkinStaffHidden');
+  if (!hidden.value) { alert('Please type and select an employee ID for check-in'); return false; }
+  return true;
+}
+</script>
+{% endblock %}
+{% endblock %}

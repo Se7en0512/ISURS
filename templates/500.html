@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center">
+  <div style="font-size:5rem;font-weight:200;color:var(--red);line-height:1;margin-bottom:.5rem;letter-spacing:-.05em">500</div>
+  <h2 style="font-family:'Newsreader',Georgia,serif;font-weight:400;color:var(--text);margin:0 0 .5rem">Something went wrong</h2>
+  <p style="color:var(--text-muted);max-width:360px;margin:0 0 1.5rem">An unexpected error occurred. Try refreshing or contact support.</p>
+  <div style="display:flex;gap:8px">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-pill">← Back to Dashboard</a>
+    <a href="javascript:location.reload()" class="btn btn-outline-secondary btn-pill">↻ Refresh</a>
+  </div>
+</div>
+{% endblock %}

@@ -2,4 +2,15 @@ __pycache__/
 *.pyc
 data/*.db
 .env
+.secret
 venv/
+ISURS_*.xlsx
+ISURS_*.docx
+static/ISURS_MOCKUP_DATA.xlsx
+_generate_mockup_xlsx.py
+_read_excel.py
+_read_mockup.py
+_verify_xlsx.py
+mockup.html
+server.log
+pulse.log

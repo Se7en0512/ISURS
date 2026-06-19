@@ -1,44 +1,211 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ 'dark' if request.cookies.get('theme') == 'dark' else 'light' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ISURS - Item Shortage & Unavailability Reporting System</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>PULSE - Hospital Asset & Supply Management System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600;6..72,700&display=swap">
+  <script src="{{ url_for('static', filename='lib/chart.umd.min.js') }}"></script>
+  <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
 <body>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Confirm Modal -->
+<div class="confirm-overlay" id="confirmOverlay" style="display:none" onclick="if(event.target===this)hideConfirm()">
+  <div class="confirm-box" onclick="event.stopPropagation()">
+    <h5 id="confirmTitle">Confirm</h5>
+    <p id="confirmMsg">Are you sure?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-sm btn-glove btn-outline-secondary btn-square" onclick="hideConfirm()">Cancel</button>
+      <button class="btn btn-sm btn-glove btn-danger btn-pill" id="confirmBtn" onclick="doConfirm()">Yes</button>
+    </div>
+  </div>
+</div>
+
 <div class="d-flex">
-  <nav class="sidebar" aria-label="Main navigation">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+    <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+      <symbol id="i-grid" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="11.5" y="2.5" width="6" height="6" rx="1"/><rect x="2.5" y="11.5" width="6" height="6" rx="1"/><rect x="11.5" y="11.5" width="6" height="6" rx="1"/>
+      </symbol>
+      <symbol id="i-box" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.5 5.5L10 2l7.5 3.5v9L10 18l-7.5-3.5v-9z"/><path d="M2.5 5.5L10 9l7.5-3.5"/><path d="M10 9v9"/>
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
+      </symbol>
+      <symbol id="i-doc" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 2h8l4 4v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M12 2v4h4"/><line x1="6" y1="10" x2="14" y2="10"/><line x1="6" y1="13" x2="12" y2="13"/>
+      </symbol>
+      <symbol id="i-warn" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2L2 17h16L10 2z"/><line x1="10" y1="7" x2="10" y2="11"/><circle cx="10" cy="14" r=".5" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-x-circle" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="7"/><line x1="7" y1="7" x2="13" y2="13"/><line x1="13" y1="7" x2="7" y2="13"/>
+      </symbol>
+      <symbol id="i-bell" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 15v1a2 2 0 0 0 4 0v-1"/><path d="M4 12.5c.5-1 1-2.4 1-4.5a5 5 0 0 1 10 0c0 2.1.5 3.5 1 4.5"/><line x1="2" y1="12.5" x2="18" y2="12.5"/>
+      </symbol>
+      <symbol id="i-gear" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="2.5"/><path d="M10 1.5v2m0 13v2m8.5-8.5h-2m-13 0h-2m3.68-6.82l1 1.73m7.64 7.64l1 1.73m-9.64 0l1-1.73m7.64-7.64l1-1.73"/>
+      </symbol>
+      <symbol id="i-list" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="6" y1="5" x2="16" y2="5"/><line x1="6" y1="10" x2="16" y2="10"/><line x1="6" y1="15" x2="16" y2="15"/><circle cx="3" cy="5" r=".8" fill="currentColor"/><circle cx="3" cy="10" r=".8" fill="currentColor"/><circle cx="3" cy="15" r=".8" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-pin" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2a5.5 5.5 0 0 0-5.5 5.5c0 4 5.5 10 5.5 10s5.5-6 5.5-10A5.5 5.5 0 0 0 10 2z"/><circle cx="10" cy="7.5" r="2" fill="currentColor" stroke="none"/>
+      </symbol>
+      <symbol id="i-cal" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="16" height="15" rx="1.5"/><line x1="2" y1="8" x2="18" y2="8"/><line x1="6" y1="1" x2="6" y2="5"/><line x1="14" y1="1" x2="14" y2="5"/>
+      </symbol>
+      <symbol id="i-cam" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 6l-1.5-2H7.5L6 6H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-3z"/><circle cx="10" cy="11" r="3"/>
+      </symbol>
+      <symbol id="i-qr" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="7" height="7" rx="1"/><rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/><rect x="11" y="11" width="3" height="3" rx=".5"/><rect x="15" y="11" width="3" height="3" rx=".5"/><rect x="11" y="15" width="3" height="3" rx=".5"/>
+      </symbol>
+      <symbol id="i-users" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="7" cy="6" r="3.5"/><path d="M1 17.5c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="14" cy="6" r="2.5"/><path d="M12 17.5c0-2.2 1.3-4 3-4s3 1.8 3 4"/>
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="7.5"/><path d="M10 5v5l3 3"/>
+      </symbol>
+      <symbol id="i-logout" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 3H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h3"/><path d="M12 14l4-4-4-4"/><line x1="16" y1="10" x2="7" y2="10"/>
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8.5" cy="8.5" r="5.5"/><line x1="12.5" y1="12.5" x2="18" y2="18"/>
+      </symbol>
+      <symbol id="i-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 8l4 4 4-4"/>
+      </symbol>
+      <symbol id="i-pkg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.5 5.5L10 2l7.5 3.5v9L10 18l-7.5-3.5v-9z"/><path d="M2.5 5.5L10 9l7.5-3.5"/>
+      </symbol>
+      <symbol id="i-tool" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 10l6.5-6.5a2 2 0 0 1 2.8 2.8L14 10"/><path d="M8.5 11.5l-3 3a2 2 0 0 1-2.8-2.8l3-3"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/>
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 1.5L3 4v5c0 5 3 9 7 10 4-1 7-5 7-10V4l-7-2.5z"/>
+      </symbol>
+    </svg>
+
     <div class="logo-wrap">
-      <img src="{{ url_for('static', filename='logo.svg') }}" alt="ISURS">
+      <img src="{{ url_for('static', filename='logo.svg') }}" alt="PULSE">
     </div>
-    <div class="nav-wrap">
-      <form action="{{ url_for('search') }}" method="GET" class="mb-2 no-print" role="search">
-        <input name="q" class="form-control form-control-sm" placeholder="Search items..." aria-label="Search" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15);color:#fff;font-size:.8rem" value="{{ search_q }}">
-      </form>
-      <a href="{{ url_for('dashboard') }}" class="nav-link" data-short="D">Dashboard</a>
-      <a href="{{ url_for('items') }}" class="nav-link" data-short="I">Items</a>
-      <a href="{{ url_for('report_new') }}" class="nav-link" data-short="R">New Report</a>
-      <a href="{{ url_for('reports') }}" class="nav-link" data-short="L">Reports</a>
-      <a href="{{ url_for('shortage') }}" class="nav-link" data-short="S">Shortage</a>
-      <a href="{{ url_for('una') }}" class="nav-link" data-short="N">Not Available</a>
-      <a href="{{ url_for('settings') }}" class="nav-link" data-short="G">Settings</a>
-      <hr style="border-color:rgba(255,255,255,.15);margin:.5rem 0">
-      <form action="{{ url_for('import_all') }}" method="POST" enctype="multipart/form-data" class="no-print">
-        <input type="file" name="file" accept=".xlsx,.xls" required style="display:none" id="importAllFile" onchange="this.form.submit()">
-        <button type="button" class="nav-link" data-short="U" onclick="document.getElementById('importAllFile').click()">Upload Excel</button>
+
+    <div class="sidebar-search">
+      <form action="{{ url_for('search') }}" method="GET" role="search">
+        <svg class="si-search"><use href="#i-search"/></svg>
+        <input name="q" class="sidebar-search-input" placeholder="Search anything..." aria-label="Search" value="{{ search_q }}">
       </form>
     </div>
+
+    <div class="nav-wrap" id="sidebarNavWrap">
+      <!-- Supplies -->
+      <button class="section-toggle" data-target="supply" aria-expanded="true">
+        <span class="section-label"><svg class="si-si"><use href="#i-pkg"/></svg> Supplies</span>
+        <svg class="si-chevron"><use href="#i-chevron"/></svg>
+      </button>
+      <div class="section-group" id="group-supply">
+        <a href="{{ url_for('dashboard') }}" class="nav-link" data-short="D"><svg class="ni"><use href="#i-grid"/></svg><span>Dashboard</span></a>
+        <a href="{{ url_for('items') }}" class="nav-link" data-short="I"><svg class="ni"><use href="#i-box"/></svg><span>Items</span></a>
+        <a href="{{ url_for('report_new') }}" class="nav-link" data-short="R"><svg class="ni"><use href="#i-plus"/></svg><span>New Report</span></a>
+        <a href="{{ url_for('reports') }}" class="nav-link" data-short="L"><svg class="ni"><use href="#i-doc"/></svg><span>Reports</span></a>
+        <a href="{{ url_for('shortage') }}" class="nav-link" data-short="S"><svg class="ni"><use href="#i-warn"/></svg><span>Shortage</span></a>
+        <a href="{{ url_for('una') }}" class="nav-link" data-short="N"><svg class="ni"><use href="#i-x-circle"/></svg><span>Not Available</span></a>
+        <a href="{{ url_for('dashboard') }}#criticalSection" class="nav-link" data-short="C"><svg class="ni"><use href="#i-bell"/></svg><span>Critical Items</span></a>
+        <a href="{{ url_for('reorder') }}" class="nav-link" data-short="O"><svg class="ni"><use href="#i-shield"/></svg><span>Reorder</span></a>
+        <a href="{{ url_for('activity_log') }}" class="nav-link" data-short="A"><svg class="ni"><use href="#i-clock"/></svg><span>Activity Log</span></a>
+      </div>
+
+      <div class="sect-divider"></div>
+
+      <!-- Equipment -->
+      <button class="section-toggle" data-target="equipment" aria-expanded="true">
+        <span class="section-label"><svg class="si-si"><use href="#i-tool"/></svg> Equipment</span>
+        <svg class="si-chevron"><use href="#i-chevron"/></svg>
+      </button>
+      <div class="section-group" id="group-equipment">
+        <a href="{{ url_for('equipment_dashboard') }}" class="nav-link" data-short="E"><svg class="ni"><use href="#i-grid"/></svg><span>Dashboard</span></a>
+        <a href="{{ url_for('equipment_list') }}" class="nav-link" data-short="M"><svg class="ni"><use href="#i-list"/></svg><span>Equipment List</span></a>
+        <a href="{{ url_for('equipment_tracking') }}" class="nav-link" data-short="T"><svg class="ni"><use href="#i-pin"/></svg><span>Tracking</span></a>
+        <a href="{{ url_for('equipment_service') }}" class="nav-link" data-short="S"><svg class="ni"><use href="#i-cal"/></svg><span>Service Schedule</span></a>
+        <a href="{{ url_for('equipment_fastscan') }}" class="nav-link" data-short="F"><svg class="ni"><use href="#i-cam"/></svg><span>Fast Scan</span></a>
+        <a href="{{ url_for('equipment_qr') }}" class="nav-link" data-short="Q"><svg class="ni"><use href="#i-qr"/></svg><span>QR Stickers</span></a>
+      </div>
+
+    </div>
+
+    <div class="sidebar-footer">
+    </div>
+
   </nav>
 
   <main class="main-content" id="main-content">
+    <div class="topbar no-print">
+      <div class="topbar-left">
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation" onclick="toggleSidebar()">
+          <span></span><span></span><span></span>
+        </button>
+        <span class="topbar-brand">PULSE</span>
+      </div>
+      <div class="topbar-right">
+        <button id="themeToggle" class="btn btn-sm btn-glove theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">☽</button>
+        <div class="alert-bell-wrap" id="alertBellWrap" style="display:none">
+          <button class="btn btn-sm btn-glove alert-bell" onclick="toggleAlerts()" title="Alerts" id="alertBellBtn">
+            <svg class="ni" style="width:18px;height:18px"><use href="#i-bell"/></svg>
+            <span class="alert-badge" id="alertBadge">0</span>
+          </button>
+          <div class="alert-dropdown" id="alertDropdown">
+            <div class="alert-dropdown-header">Alerts</div>
+            <div class="alert-dropdown-body" id="alertDropdownBody">
+              <div class="alert-dropdown-empty">No alerts</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-glove help-btn" onclick="showHelpModal()" title="Help" id="helpBtn">
+          <svg class="ni" style="width:18px;height:18px" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10" cy="10" r="7.5"/><path d="M7.5 8a2.5 2.5 0 0 1 5 0c0 1.5-2 2-2 3.5"/><circle cx="10" cy="14.5" r=".75" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        {% if current_user %}
+        <div class="account-dropdown">
+          <button class="account-trigger btn btn-glove" onclick="toggleAccountMenu()" title="Account">
+            <span class="account-avatar">{{ current_user.full_name[:1].upper() if current_user.full_name else '?' }}</span>
+            <span class="account-name">{{ current_user.employee_id }}</span>
+            <span class="account-arrow">▾</span>
+          </button>
+          <div class="account-menu" id="accountMenu">
+            <div class="account-menu-header">
+              <span class="account-menu-id">{{ current_user.employee_id }}</span>
+              <span class="account-menu-name">{{ current_user.full_name }}</span>
+              {% if current_user.role == 'admin' %}<span class="account-menu-role">admin</span>{% endif %}
+            </div>
+            {% if current_user.role == 'admin' %}
+            <div class="account-menu-divider"></div>
+            <a href="{{ url_for('staff_list') }}" class="account-menu-item"><svg class="ni" style="width:18px;height:18px"><use href="#i-users"/></svg> Staff Management</a>
+            <a href="{{ url_for('activity_log') }}" class="account-menu-item"><svg class="ni" style="width:18px;height:18px"><use href="#i-clock"/></svg> Activity Log</a>
+            <a href="{{ url_for('settings') }}" class="account-menu-item"><svg class="ni" style="width:18px;height:18px"><use href="#i-gear"/></svg> System Settings</a>
+            {% endif %}
+            <div class="account-menu-divider"></div>
+            <a href="{{ url_for('preferences') }}" class="account-menu-item"><svg class="ni" style="width:18px;height:18px"><use href="#i-gear"/></svg> Preferences</a>
+            <button class="account-menu-item" onclick="showPasswordModal()"><svg class="ni" style="width:18px;height:18px"><use href="#i-grid"/></svg> Change Password</button>
+            <a href="{{ url_for('logout') }}" class="account-menu-item"><svg class="ni" style="width:18px;height:18px"><use href="#i-logout"/></svg> Logout</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert" style="margin-bottom:.75rem">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
@@ -47,10 +214,475 @@
     {% endwith %}
 
     {% block content %}{% endblock %}
+
+<!-- Change Password Modal -->
+<div class="confirm-overlay" id="passwordModal" style="display:none" onclick="if(event.target===this)hidePasswordModal()">
+  <div class="confirm-box" onclick="event.stopPropagation()" style="max-width:360px">
+    <h5 id="passwordModalTitle">Change Password</h5>
+    <form id="passwordForm" method="POST" action="{{ url_for('account_change_password') }}" style="margin-top:1rem">
+      <div style="margin-bottom:.75rem">
+        <label class="form-label">Current Password</label>
+        <input type="password" name="old_password" class="form-control form-control-glove" required>
+      </div>
+      <div style="margin-bottom:.75rem">
+        <label class="form-label">New Password</label>
+        <input type="password" name="new_password" class="form-control form-control-glove" required minlength="8" id="pwdNew">
+        <div id="pwdStrength2" style="font-size:.72rem;font-weight:500;min-height:1.2rem;margin-top:2px"></div>
+      </div>
+      <div style="margin-bottom:.75rem">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" name="confirm_password" class="form-control form-control-glove" required minlength="8">
+      </div>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-sm btn-glove btn-outline-secondary btn-square" onclick="hidePasswordModal()">Cancel</button>
+        <button type="submit" class="btn btn-sm btn-glove btn-primary btn-pill">Update Password</button>
+      </div>
+    </form>
+  </div>
+</div>
   </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Help Modal -->
+<div class="help-modal-overlay" id="helpModal" style="display:none" onclick="if(event.target===this)hideHelpModal()">
+  <div class="help-modal" onclick="event.stopPropagation()">
+    <div class="help-modal-header">
+      <h5>Help & Support</h5>
+      <button class="help-modal-close" onclick="hideHelpModal()">×</button>
+    </div>
+    <div class="help-modal-body">
+      <div class="help-section">
+        <button class="help-restart-btn btn btn-glove btn-outline-primary btn-square" onclick="hideHelpModal();setTimeout(function(){startTour()},300);">
+          <svg class="ni" style="width:18px;height:18px" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M16 16v-5h-5"/><path d="M4 9a7 7 0 0 1 12.2-4.2"/><path d="M16 11a7 7 0 0 1-12.2 4.2"/></svg>
+          Restart Guided Tour
+        </button>
+      </div>
+      <div class="help-section">
+        <div class="help-section-title">Quick Links</div>
+        <a href="{{ url_for('dashboard') }}" class="help-link">Supply Dashboard</a>
+        <a href="{{ url_for('report_new') }}" class="help-link">Submit New Report</a>
+        <a href="{{ url_for('equipment_fastscan') }}" class="help-link">Scan Equipment QR</a>
+        <a href="{{ url_for('items') }}" class="help-link">Manage Items</a>
+        {% if current_user and current_user.role == 'admin' %}
+        <a href="{{ url_for('staff_list') }}" class="help-link">Staff Management</a>
+        <a href="{{ url_for('settings') }}" class="help-link">System Settings</a>
+        {% endif %}
+      </div>
+      <div class="help-section">
+        <div class="help-section-title">FAQ</div>
+        <div class="help-faq-item">
+          <button class="help-faq-q" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">How do I report a shortage? <span class="help-faq-arrow">▾</span></button>
+          <div class="help-faq-a">Go to <strong>New Report</strong> in the sidebar. Select the item, unit, ward, and set status to "Shortage" or "Not Available". Click Submit.</div>
+        </div>
+        <div class="help-faq-item">
+          <button class="help-faq-q" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">How do I scan equipment? <span class="help-faq-arrow">▾</span></button>
+          <div class="help-faq-a">Click <strong>Fast Scan</strong> under Equipment. Allow camera access, then point at the QR sticker on the equipment. Choose Check Out or Inspect.</div>
+        </div>
+        <div class="help-faq-item">
+          <button class="help-faq-q" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">How do I change my password? <span class="help-faq-arrow">▾</span></button>
+          <div class="help-faq-a">Click your name (top-right) → <strong>Change Password</strong>. Enter your current and new password (min 8 chars).</div>
+        </div>
+        <div class="help-faq-item">
+          <button class="help-faq-q" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">How do I export data? <span class="help-faq-arrow">▾</span></button>
+          <div class="help-faq-a">On the Dashboard, click <strong>Export Excel</strong>. On Shortage/NA pages, click the Export button. Reports page also has an export option.</div>
+        </div>
+        <div class="help-faq-item">
+          <button class="help-faq-q" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">Who do I contact for issues? <span class="help-faq-arrow">▾</span></button>
+          <div class="help-faq-a">Contact your system administrator for account issues. For technical errors, check with your hospital IT department.</div>
+        </div>
+      </div>
+    </div>
+    <div class="help-modal-footer">
+      <button class="btn btn-sm btn-glove btn-outline-secondary btn-square" onclick="hideHelpModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
+<style>
+.account-dropdown { position: relative; }
+.account-trigger {
+  display: flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .25rem .6rem;
+  cursor: pointer; color: var(--text); font-size: .82rem;
+}
+.account-trigger:hover { background: var(--bg); }
+.account-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--teal); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .8rem; flex-shrink: 0;
+}
+.account-name { font-weight: 600; font-size: .8rem; }
+.account-arrow { font-size: .6rem; opacity: .5; }
+.account-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 100;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  min-width: 200px; display: none; overflow: hidden;
+}
+.account-menu.open { display: block; }
+.account-menu-header {
+  padding: .65rem .8rem; display: flex; flex-direction: column; gap: 2px;
+}
+.account-menu-id { font-weight: 600; font-size: .82rem; }
+.account-menu-name { font-size: .72rem; color: var(--text-muted); }
+.account-menu-role {
+  font-size: .6rem; text-transform: uppercase; letter-spacing: .5px;
+  background: var(--amber); color: #1a1a2e;
+  padding: 1px 6px; border-radius: 4px; font-weight: 600;
+  align-self: flex-start; margin-top: 3px;
+}
+.account-menu-divider { height: 1px; background: var(--border); }
+.account-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: .6rem .8rem; font-size: .82rem; cursor: pointer;
+  color: var(--text); text-decoration: none; border: none;
+  background: none; width: 100%; text-align: left;
+}
+.account-menu-item:hover { background: var(--bg); }
+.account-menu-item:last-child { color: var(--red); }
+.account-menu-item .ni { width: 18px; height: 18px; flex-shrink: 0; opacity: .55; }
+.staff-ac-wrap { position: relative; }
+.staff-ac-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: var(--shadow); max-height: 200px; overflow-y: auto; display: none;
+}
+.staff-ac-dropdown.open { display: block; }
+.staff-ac-item {
+  padding: .4rem .7rem; font-size: .8rem; cursor: pointer;
+  border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between;
+}
+.staff-ac-item:hover { background: var(--bg); }
+.staff-ac-item .ac-name { font-weight: 500; }
+.staff-ac-item .ac-dept { font-size: .72rem; color: var(--text-muted); }
+</style>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
+{% block scripts %}{% endblock %}
+<script>
+// ── Sidebar collapsible sections ──
+(function() {
+  var toggles = document.querySelectorAll('.section-toggle');
+  toggles.forEach(function(t) {
+    var targetId = t.getAttribute('data-target');
+    var group = document.getElementById('group-' + targetId);
+    if (!group) return;
+    var saved = localStorage.getItem('sidebar_' + targetId);
+    if (saved === 'collapsed') {
+      t.setAttribute('aria-expanded', 'false');
+      group.style.maxHeight = '0px';
+    } else {
+      group.style.maxHeight = group.scrollHeight + 'px';
+    }
+    t.addEventListener('click', function() {
+      var isCollapsed = t.getAttribute('aria-expanded') === 'true' ? 'true' : 'false';
+      var next = isCollapsed === 'true' ? 'false' : 'true';
+      t.setAttribute('aria-expanded', next);
+      localStorage.setItem('sidebar_' + targetId, next === 'false' ? 'collapsed' : 'expanded');
+      group.style.maxHeight = next === 'false' ? '0px' : group.scrollHeight + 'px';
+    });
+  });
+})();
+
+// ── Toast notifications ──
+function showToast(msg, type) {
+  type = type || 'success';
+  var c = document.getElementById('toastContainer');
+  var t = document.createElement('div');
+  t.className = 'toast-notification ' + type;
+  var icon = type === 'success' ? '✓' : type === 'danger' ? '✕' : '⚠';
+  t.innerHTML = '<span>' + icon + '</span><span>' + msg + '</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>';
+  c.appendChild(t);
+  if (type === 'danger' || type === 'warning') {
+    t.style.borderLeft = '4px solid ' + (type === 'danger' ? 'var(--red)' : 'var(--amber)');
+  } else {
+    setTimeout(function() { t.style.animation = 'toastOut .25s ease-out forwards'; setTimeout(function() { t.remove(); }, 300); }, 3500);
+  }
+}
+
+// Flash messages as toasts
+document.querySelectorAll('.alert').forEach(function(a) {
+  var cat = a.classList.contains('alert-success') ? 'success' : a.classList.contains('alert-danger') ? 'danger' : 'warning';
+  var msg = a.textContent.trim().replace(/×$/, '').trim();
+  if (msg) showToast(msg, cat);
+  a.remove();
+});
+
+// ── Confirmation modal ──
+var _confirmCb = null;
+function showConfirm(title, msg, cb) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmOverlay').style.display = 'flex';
+  _confirmCb = cb;
+}
+function hideConfirm() {
+  document.getElementById('confirmOverlay').style.display = 'none';
+  _confirmCb = null;
+}
+function doConfirm() {
+  if (_confirmCb) _confirmCb();
+  hideConfirm();
+}
+
+// ── Dark mode toggle ──
+function toggleTheme() {
+  var html = document.documentElement;
+  var current = html.getAttribute('data-theme');
+  var next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.cookie = 'theme=' + next + ';path=/;max-age=31536000';
+  document.getElementById('themeToggle').textContent = next === 'dark' ? '☀' : '☽';
+}
+(function() {
+  var theme = document.cookie.split('; ').find(function(r) { return r.startsWith('theme='); });
+  if (theme) {
+    var v = theme.split('=')[1];
+    document.documentElement.setAttribute('data-theme', v);
+    if (v === 'dark') document.getElementById('themeToggle').textContent = '☀';
+  }
+})();
+
+// ── Staff auto-complete ──
+var _staffACTimer = null;
+function staffAC(inputId, dropdownId, hiddenId) {
+  var input = document.getElementById(inputId);
+  var dd = document.getElementById(dropdownId);
+  var hidden = document.getElementById(hiddenId);
+  if (!input || !dd) return;
+  input.addEventListener('input', function() {
+    clearTimeout(_staffACTimer);
+    var q = input.value.trim();
+    if (q.length < 1) { dd.classList.remove('open'); dd.innerHTML = ''; if (hidden) hidden.value = ''; return; }
+    _staffACTimer = setTimeout(function() {
+      csrfFetch('/api/staff/search?q=' + encodeURIComponent(q)).then(function(r) { return r.json(); }).then(function(data) {
+        dd.innerHTML = '';
+        if (data.length === 0) { dd.classList.remove('open'); return; }
+        data.forEach(function(s) {
+          var item = document.createElement('div');
+          item.className = 'staff-ac-item';
+          item.innerHTML = '<span class="ac-name">' + esc(s.employee_id) + ' — ' + esc(s.full_name) + '</span><span class="ac-dept">' + esc(s.department) + '</span>';
+          item.addEventListener('click', function() {
+            input.value = s.employee_id + ' — ' + s.full_name;
+            if (hidden) hidden.value = s.employee_id;
+            dd.classList.remove('open');
+          });
+          dd.appendChild(item);
+        });
+        dd.classList.add('open');
+      });
+    }, 200);
+  });
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.staff-ac-wrap')) dd.classList.remove('open');
+  });
+}
+
+// ── PyWebView export intercept ──
+document.addEventListener('click', function(e) {
+  var link = e.target.closest('a');
+  if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('/export/') && window.pywebview) {
+    e.preventDefault();
+    var url = link.getAttribute('href');
+    var parts = url.split('/');
+    var name = parts[2].split('?')[0];
+    var filename = 'PULSE_' + name + '.xlsx';
+    pywebview.api.export(url, filename).then(function(success) {
+      if (success) showToast('File saved to Downloads', 'success');
+    });
+  }
+});
+
+// ── esc() — safe textContent-based HTML escaping ──
+function esc(str) {
+  if (str == null) return '';
+  var d = document.createElement('div');
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+// ── safeHTML — tagged template literal for safe innerHTML ──
+function safeHTML(strings) {
+  var result = '', i = 0;
+  for (; i < strings.length - 1; i++) {
+    result += strings[i] + esc(arguments[i + 1]);
+  }
+  result += strings[i];
+  return result;
+}
+
+// ── CSRF-safe fetch wrapper ──
+function csrfFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) opts.headers['X-CSRFToken'] = meta.getAttribute('content');
+  return fetch(url, opts);
+}
+
+// ── Inject CSRF token into ALL POST forms ──
+(function() {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (!meta) return;
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form.method && form.method.toUpperCase() !== 'POST') return;
+    if (form.querySelector('input[name="csrf_token"]')) return;
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'csrf_token'; inp.value = meta.getAttribute('content');
+    form.appendChild(inp);
+  });
+})();
+
+// ── Safe confirm dialogs (replaces inline onsubmit confirm) ──
+document.addEventListener('submit', function(e) {
+  var form = e.target;
+  var msg = form.getAttribute('data-confirm');
+  if (msg && !confirm(msg)) e.preventDefault();
+});
+
+// ── Account dropdown ──
+function toggleAccountMenu() {
+  var m = document.getElementById('accountMenu');
+  m.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('accountMenu');
+  if (dd && dd.classList.contains('open') && !e.target.closest('.account-dropdown')) {
+    dd.classList.remove('open');
+  }
+});
+
+// ── Change Password modal ──
+function showPasswordModal() {
+  document.getElementById('accountMenu').classList.remove('open');
+  document.getElementById('passwordModal').style.display = 'flex';
+  if (typeof initPasswordStrength === 'function') initPasswordStrength('pwdNew', 'pwdStrength2');
+}
+function hidePasswordModal() {
+  document.getElementById('passwordModal').style.display = 'none';
+}
+
+// ── Mobile sidebar toggle ──
+var sidebarEl = document.getElementById('sidebar');
+var overlayEl = document.getElementById('sidebarOverlay');
+var toggleBtn = document.getElementById('sidebarToggle');
+function toggleSidebar() {
+  var isOpen = sidebarEl.classList.toggle('open');
+  overlayEl.classList.toggle('active', isOpen);
+  toggleBtn.classList.toggle('open', isOpen);
+  document.body.style.overflow = isOpen ? 'hidden' : '';
+}
+function closeSidebar() {
+  sidebarEl.classList.remove('open');
+  overlayEl.classList.remove('active');
+  toggleBtn.classList.remove('open');
+  document.body.style.overflow = '';
+}
+sidebarEl.querySelectorAll('.nav-link').forEach(function(l) {
+  l.addEventListener('click', function() {
+    if (window.innerWidth < 768) closeSidebar();
+  });
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && sidebarEl.classList.contains('open')) closeSidebar();
+});
+var lastWidth = window.innerWidth;
+window.addEventListener('resize', function() {
+  var w = window.innerWidth;
+  if (lastWidth < 768 && w >= 768 && sidebarEl.classList.contains('open')) closeSidebar();
+  lastWidth = w;
+});
+
+// ── Alert Bell: fetch critical stock alerts ──
+function toggleAlerts() {
+  var dd = document.getElementById('alertDropdown');
+  dd.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('alertDropdown');
+  if (dd && dd.classList.contains('open') && !e.target.closest('.alert-bell-wrap')) {
+    dd.classList.remove('open');
+  }
+});
+function fetchAlerts() {
+  csrfFetch('/api/alerts').then(function(r){return r.json()}).then(function(d){
+    var wrap = document.getElementById('alertBellWrap');
+    var badge = document.getElementById('alertBadge');
+    if (d.total > 0) {
+      wrap.style.display = '';
+      badge.textContent = d.total;
+      var body = document.getElementById('alertDropdownBody');
+      var h = '';
+      d.items.forEach(function(i){
+        var icon = i.type === 'out' ? '✕' : '⚠';
+        var cls = i.type === 'out' ? 'alert-item-out' : 'alert-item-low';
+        h += '<div class="alert-dropdown-item ' + cls + '">' +
+          '<span class="alert-item-icon">' + icon + '</span>' +
+          '<span class="alert-item-text"><strong>' + esc(i.code) + '</strong> ' + esc(i.name) +
+          '<br><small>Stock: ' + i.stock + ' / Critical: ' + i.critical + ' · ' + esc(i.store) + '</small></span></div>';
+      });
+      body.innerHTML = h;
+    } else {
+      wrap.style.display = 'none';
+    }
+  }).catch(function(){});
+}
+document.addEventListener('DOMContentLoaded', function() {
+  fetchAlerts();
+  setInterval(fetchAlerts, 30000);
+});
+// ── Apply user preference theme on load ──
+(function() {
+  var html = document.documentElement;
+  var cookieTheme = (document.cookie.split('; ').find(function(r) { return r.startsWith('theme='); }) || '').split('=')[1];
+  if (!cookieTheme) {
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    if (prefersDark) document.getElementById('themeToggle').textContent = '☀';
+  }
+})();
+</script>
+<style>
+.alert-bell-wrap { position: relative; }
+.alert-bell { position: relative; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .35rem .5rem; cursor: pointer; color: var(--text); display: flex; align-items: center; }
+.alert-bell:hover { background: var(--bg); }
+.alert-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: var(--red); color: #fff; font-size: .6rem; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px; line-height: 1;
+}
+.alert-dropdown {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 200;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  min-width: 280px; max-width: 360px; display: none; overflow: hidden;
+}
+.alert-dropdown.open { display: block; }
+.alert-dropdown-header {
+  padding: .6rem .75rem; font-size: .78rem; font-weight: 600;
+  background: var(--card-alt); border-bottom: 1px solid var(--border-soft);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.alert-dropdown-body { max-height: 320px; overflow-y: auto; }
+.alert-dropdown-empty { padding: 1.5rem; text-align: center; font-size: .78rem; color: var(--text-muted); }
+.alert-dropdown-item {
+  padding: .6rem .75rem; display: flex; gap: 8px; align-items: flex-start;
+  border-bottom: 1px solid var(--border-soft); font-size: .78rem; cursor: default;
+}
+.alert-dropdown-item:last-child { border-bottom: none; }
+.alert-dropdown-item:hover { background: var(--bg); }
+.alert-item-icon { font-size: 1rem; flex-shrink: 0; width: 20px; text-align: center; }
+.alert-item-out .alert-item-icon { color: var(--red); }
+.alert-item-low .alert-item-icon { color: var(--amber); }
+.alert-item-text strong { font-weight: 600; }
+.alert-item-text small { color: var(--text-muted); display: block; margin-top: 1px; }
+.alert-item-out { border-left: 3px solid var(--red); }
+.alert-item-low { border-left: 3px solid var(--amber); }
+</style>
 </body>
 </html>

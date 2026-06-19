@@ -1,44 +1,77 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Master List of Items</h3>
+<div class="page-header">
     <div>
-        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">+ Add Item</button>
-        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">Import from Excel</button>
+        <h2>Items</h2>
+        <p class="subtitle">Master list of all supply items</p>
+    </div>
+    <div class="no-print" style="display:flex;gap:6px">
+        <button class="btn btn-success btn-sm btn-glove" data-bs-toggle="modal" data-bs-target="#addModal">+ Add Item</button>
+        <button class="btn btn-outline-secondary btn-sm btn-glove" data-bs-toggle="modal" data-bs-target="#importModal">Import</button>
     </div>
 </div>
 
-<div class="card">
+<div class="card card--flush">
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="table table--light sortable">
             <thead>
                 <tr>
                     <th>Code</th>
                     <th>Item Name</th>
                     <th>Store</th>
-                    <th style="width:120px">Actions</th>
+                    <th>Type</th>
+                    <th>Stock</th>
+                    <th>Critical Lvl</th>
+                    <th>Status</th>
+                    <th style="width:160px">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in items %}
+                {% set sq = item.stock_quantity or 0 %}
+                {% set cl = item.critical_level or 0 %}
+                {% if sq == 0 %}
+                    {% set badge = 'bg-danger' %}
+                    {% set label = 'Out of Stock' %}
+                    {% set type_badge = 'bg-danger' %}
+                    {% set type_label = 'Critical' %}
+                {% elif sq <= cl %}
+                    {% set badge = 'bg-warning text-dark' %}
+                    {% set label = 'Low' %}
+                    {% set type_badge = 'bg-danger' %}
+                    {% set type_label = 'Critical' %}
+                {% else %}
+                    {% set badge = 'bg-success' %}
+                    {% set label = 'OK' %}
+                    {% set type_badge = 'bg-success' %}
+                    {% set type_label = 'Non-Critical' %}
+                {% endif %}
                 <tr>
-                    <td>{{ item.code }}</td>
+                    <td><code>{{ item.code }}</code></td>
                     <td>{{ item.name }}</td>
                     <td>{{ item.store.name }}</td>
+                    <td><span class="badge {{ type_badge }}">{{ type_label }}</span></td>
+                    <td>{{ sq }}</td>
+                    <td>{{ cl }}</td>
+                    <td><span class="badge {{ badge }}">{{ label }}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                        <a href="{{ url_for('item_history', id=item.id) }}" class="btn btn-sm btn-outline-info btn-square btn-glove" title="View history">Hist</a>
+                        <button class="btn btn-sm btn-outline-primary btn-square btn-glove" data-bs-toggle="modal"
                             data-bs-target="#editModal{{ item.id }}">Edit</button>
                         <form method="POST" action="{{ url_for('delete_item', id=item.id) }}" style="display:inline"
                             onsubmit="return confirm('Delete this item?')">
-                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                            <button class="btn btn-sm btn-outline-danger btn-square btn-glove">Delete</button>
                         </form>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="text-center text-muted py-4">No items. Add one or import from Excel.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">No items. Add one or import from Excel.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% if items %}
+        <div style="padding:.5rem .75rem;font-size:.75rem;color:var(--text-muted);text-align:right">Showing {{ items|length }} item{% if items|length != 1 %}s{% endif %}</div>
+        {% endif %}
     </div>
 </div>
 
@@ -46,28 +79,38 @@
     <div class="modal-dialog">
         <form method="POST" action="{{ url_for('add_item') }}">
             <div class="modal-content">
-                <div class="modal-header"><h5>Add Item</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header"><h5 style="margin:0;font-size:1rem">Add Item</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Code</label>
-                        <input name="code" class="form-control" required>
+                        <input name="code" class="form-control form-control-glove" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Item Name</label>
-                        <input name="name" class="form-control" required>
+                        <input name="name" class="form-control form-control-glove" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Store</label>
-                        <select name="store_id" class="form-select" required>
+                        <select name="store_id" class="form-select form-select-glove" required>
                             <option value="">Select store</option>
                             {% for s in stores %}
                             <option value="{{ s.id }}">{{ s.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="row">
+                        <div class="col">
+                            <label class="form-label">Stock Quantity</label>
+                            <input name="stock_quantity" class="form-control form-control-glove" type="number" min="0" value="0">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Critical Level</label>
+                            <input name="critical_level" class="form-control form-control-glove" type="number" min="0" value="5">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="submit" class="btn btn-primary btn-glove">Save</button>
                 </div>
             </div>
         </form>
@@ -77,14 +120,15 @@
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" action="{{ url_for('import_items') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="modal-content">
-                <div class="modal-header"><h5>Import from Excel</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header"><h5 style="margin:0;font-size:1rem">Import from Excel</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body">
-                    <p class="text-muted">Upload an Excel file with a "Master List2" sheet containing Code, Item, Store columns.</p>
-                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                    <p class="text-muted" style="font-size:.82rem">Upload an Excel file with a "Master List2" sheet containing Code, Item, Store columns.</p>
+                    <input type="file" name="file" class="form-control form-control-glove" accept=".xlsx,.xls" required>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Import</button>
+                    <button type="submit" class="btn btn-primary btn-glove">Import</button>
                 </div>
             </div>
         </form>
@@ -96,27 +140,37 @@
     <div class="modal-dialog">
         <form method="POST" action="{{ url_for('edit_item', id=item.id) }}">
             <div class="modal-content">
-                <div class="modal-header"><h5>Edit Item</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header"><h5 style="margin:0;font-size:1rem">Edit Item</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Code</label>
-                        <input name="code" class="form-control" value="{{ item.code }}" required>
+                        <input name="code" class="form-control form-control-glove" value="{{ item.code }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Item Name</label>
-                        <input name="name" class="form-control" value="{{ item.name }}" required>
+                        <input name="name" class="form-control form-control-glove" value="{{ item.name }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Store</label>
-                        <select name="store_id" class="form-select" required>
+                        <select name="store_id" class="form-select form-select-glove" required>
                             {% for s in stores %}
                             <option value="{{ s.id }}" {% if s.id == item.store_id %}selected{% endif %}>{{ s.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="row">
+                        <div class="col">
+                            <label class="form-label">Stock Quantity</label>
+                            <input name="stock_quantity" class="form-control form-control-glove" type="number" min="0" value="{{ item.stock_quantity or 0 }}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Critical Level</label>
+                            <input name="critical_level" class="form-control form-control-glove" type="number" min="0" value="{{ item.critical_level or 5 }}">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Update</button>
+                    <button type="submit" class="btn btn-primary btn-glove">Update</button>
                 </div>
             </div>
         </form>

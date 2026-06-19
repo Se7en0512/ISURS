@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Activity Log</h2>
+    <p class="subtitle">System audit trail</p>
+  </div>
+</div>
+
+<div class="card card--flush mb-3">
+  <div class="card-body" style="padding:.65rem 1rem">
+    <form method="GET" class="d-flex flex-wrap" style="gap:.5rem;align-items:center">
+      <input name="q" class="form-control form-control-glove" placeholder="Search user, action, details..." style="width:auto;min-width:220px" value="{{ request.args.get('q','') }}">
+      <select name="action" class="form-select form-select-glove" style="width:auto;min-width:140px">
+        <option value="">All Actions</option>
+        {% for a in actions %}
+        <option value="{{ a }}" {% if request.args.get('action') == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+      <input type="date" name="from" class="form-control form-control-sm" style="width:auto;min-width:130px" value="{{ request.args.get('from','') }}" placeholder="From">
+      <input type="date" name="to" class="form-control form-control-sm" style="width:auto;min-width:130px" value="{{ request.args.get('to','') }}" placeholder="To">
+      <button type="submit" class="btn btn-sm btn-outline-primary btn-square btn-glove">Filter</button>
+      <a href="{{ url_for('activity_log') }}" class="btn btn-sm btn-outline-secondary btn-square btn-glove">Clear</a>
+    </form>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle">
+        <thead>
+          <tr>
+            <th style="width:130px">User</th>
+            <th style="width:110px">Action</th>
+            <th>Details</th>
+            <th style="width:140px;text-align:right">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td><code style="font-size:.75rem">{{ log.user }}</code></td>
+            <td>
+              {%- set badge_class = 'bg-secondary' %}
+              {%- if log.action == 'Login' %}{% set badge_class = 'bg-success' %}
+              {%- elif log.action == 'Logout' %}{% set badge_class = 'bg-secondary' %}
+              {%- elif log.action == 'Settings' %}{% set badge_class = 'bg-purple' %}
+              {%- elif log.action == 'Registration' %}{% set badge_class = 'bg-warning' %}
+              {%- endif %}
+              <span class="badge {{ badge_class }}" {% if log.action == 'Registration' %}style="color:#1a1a2e"{% endif %}>{{ log.action }}</span>
+            </td>
+            <td style="font-size:.8rem;color:var(--text-muted)">{{ log.details }}</td>
+            <td style="text-align:right;white-space:nowrap;font-size:.75rem;color:var(--text-muted)">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted" style="padding:3rem">No activity log entries</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<nav style="display:flex;justify-content:center;margin-top:1rem">
+  <ul class="pagination pagination-sm">
+    {% if pagination.has_prev %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('activity_log', page=pagination.prev_num, q=request.args.get('q',''), action=request.args.get('action','')) }}">«</a></li>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+      <li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('activity_log', page=p, q=request.args.get('q',''), action=request.args.get('action','')) }}">{{ p }}</a></li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('activity_log', page=pagination.next_num, q=request.args.get('q',''), action=request.args.get('action','')) }}">»</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

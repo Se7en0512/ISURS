@@ -1,153 +1,155 @@
 {% extends "base.html" %}
 {% block content %}
-<h3 class="mb-3">Settings</h3>
-
-<div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Stores</div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('add_store') }}" class="input-group mb-2">
-                    <input name="name" class="form-control form-control-sm" placeholder="Store name" required>
-                    <button class="btn btn-sm btn-primary">Add</button>
-                </form>
-                <ul class="list-group list-group-flush">
-                    {% for s in stores %}
-                    <li class="list-group-item d-flex justify-content-between">
-                        {{ s.name }}
-                        <form method="POST" action="{{ url_for('delete_store', id=s.id) }}" style="display:inline"
-                            onsubmit="return confirm('Delete {{ s.name }}?')">
-                            <button class="btn btn-sm btn-outline-danger">x</button>
-                        </form>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Units</div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('add_unit') }}" class="input-group mb-2">
-                    <input name="name" class="form-control form-control-sm" placeholder="Unit name" required>
-                    <button class="btn btn-sm btn-primary">Add</button>
-                </form>
-                <ul class="list-group list-group-flush">
-                    {% for u in units %}
-                    <li class="list-group-item">{{ u.name }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Wards</div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('add_ward') }}" class="row g-1 mb-2">
-                    <div class="col-5">
-                        <select name="unit_id" class="form-select form-select-sm" required>
-                            <option value="">Unit</option>
-                            {% for u in units %}
-                            <option value="{{ u.id }}">{{ u.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-5">
-                        <input name="name" class="form-control form-control-sm" placeholder="Ward name" required>
-                    </div>
-                    <div class="col-2">
-                        <button class="btn btn-sm btn-primary w-100">Add</button>
-                    </div>
-                </form>
-                <div style="max-height:300px;overflow-y:auto">
-                    <table class="table table-sm mb-0">
-                        <thead><tr><th>Ward</th><th>Unit</th></tr></thead>
-                        <tbody>
-                            {% for w in wards %}
-                            <tr><td>{{ w.name }}</td><td>{{ w.unit.name }}</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Sections</div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('add_section') }}" class="input-group mb-2">
-                    <input name="name" class="form-control form-control-sm" placeholder="Section name" required>
-                    <button class="btn btn-sm btn-primary">Add</button>
-                </form>
-                <ul class="list-group list-group-flush">
-                    {% for s in sections %}
-                    <li class="list-group-item">{{ s.name }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
+<div class="page-header">
+  <div>
+    <h2>Settings</h2>
+    <p class="subtitle">Manage reference data and system configuration</p>
+  </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">Weeks</div>
+<div class="settings-grid">
+  <div class="card card--bordered">
+    <div class="card-header"><span>Stores</span></div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('add_week') }}" class="row g-2 mb-2">
-            <div class="col-auto">
-                <input name="week_number" type="number" class="form-control form-control-sm" placeholder="Week #" required>
-            </div>
-            <div class="col-auto">
-                <input name="date_range" class="form-control form-control-sm" placeholder="e.g. 3 Jan - 9 Jan 2026" style="width:250px">
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-sm btn-primary">Add</button>
-            </div>
-        </form>
+      <form method="POST" action="{{ url_for('add_store') }}" class="input-group mb-2">
+        <input name="name" class="form-control form-control-sm" placeholder="Store name" required>
+        <button class="btn btn-sm btn-primary">Add</button>
+      </form>
+      <ul class="list-group">
+        {% for s in stores %}
+        <li class="list-group-item d-flex justify-content-between">
+          {{ s.name }}
+          <form method="POST" action="{{ url_for('delete_store', id=s.id) }}" style="display:inline"
+              onsubmit="return confirm(&#39;Delete this store?&#39;)">
+            <button class="btn btn-sm btn-outline-danger btn-square" title="Delete {{ s.name }}">✕</button>
+          </form>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted">No stores yet</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="card card--bordered card--warn">
+    <div class="card-header"><span>Units</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('add_unit') }}" class="input-group mb-2">
+        <input name="name" class="form-control form-control-sm" placeholder="Unit name" required>
+        <button class="btn btn-sm btn-primary">Add</button>
+      </form>
+      <ul class="list-group">
+        {% for u in units %}
+        <li class="list-group-item">{{ u.name }}</li>
+        {% else %}
+        <li class="list-group-item text-muted">No units yet</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="card card--alt">
+    <div class="card-header"><span>Wards</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('add_ward') }}" class="row g-1 mb-2">
+        <div class="col-5">
+          <select name="unit_id" class="form-select form-select-sm" required>
+            <option value="">Unit</option>
+            {% for u in units %}
+            <option value="{{ u.id }}">{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-5">
+          <input name="name" class="form-control form-control-sm" placeholder="Ward name" required>
+        </div>
+        <div class="col-2">
+          <button class="btn btn-sm btn-primary w-100">Add</button>
+        </div>
+      </form>
+      <div style="max-height:280px;overflow-y:auto">
         <table class="table table-sm mb-0">
-            <thead><tr><th>Week</th><th>Date Range</th></tr></thead>
-            <tbody>
-                {% for w in weeks %}
-                <tr><td>Week {{ w.week_number }}</td><td>{{ w.date_range or '' }}</td></tr>
-                {% endfor %}
-            </tbody>
+          <thead><tr><th>Ward</th><th>Unit</th></tr></thead>
+          <tbody>
+            {% for w in wards %}
+            <tr><td>{{ w.name }}</td><td>{{ w.unit.name }}</td></tr>
+            {% else %}
+            <tr><td colspan="2" class="text-muted text-center">No wards yet</td></tr>
+            {% endfor %}
+          </tbody>
         </table>
+      </div>
     </div>
+  </div>
+
+  <div class="card card--alt">
+    <div class="card-header"><span>Sections</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('add_section') }}" class="input-group mb-2">
+        <input name="name" class="form-control form-control-sm" placeholder="Section name" required>
+        <button class="btn btn-sm btn-primary">Add</button>
+      </form>
+      <ul class="list-group">
+        {% for s in sections %}
+        <li class="list-group-item">{{ s.name }}</li>
+        {% else %}
+        <li class="list-group-item text-muted">No sections yet</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
 </div>
 
-<div class="card">
-    <div class="card-header">Seed from Excel</div>
-    <div class="card-body">
-        <p class="text-muted">Import Stores, Units, Wards, Sections, and Weeks from the Excel Droplist sheet.</p>
-        <form method="POST" action="{{ url_for('seed_from_excel') }}" enctype="multipart/form-data">
-            <div class="input-group">
-                <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
-                <button class="btn btn-primary">Seed Data</button>
-            </div>
-        </form>
-    </div>
+<div class="card card--flush mb-4">
+  <div class="card-header"><span>Weeks</span></div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('add_week') }}" class="d-flex flex-wrap" style="gap:.5rem;margin-bottom:.75rem">
+      <input name="week_number" type="number" class="form-control form-control-sm" placeholder="Week #" style="width:100px" required>
+      <input name="date_range" class="form-control form-control-sm" placeholder="e.g. 3 Jan - 9 Jan 2026" style="width:250px">
+      <button class="btn btn-sm btn-primary">Add</button>
+    </form>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Week</th><th>Date Range</th></tr></thead>
+      <tbody>
+        {% for w in weeks %}
+        <tr><td>Week {{ w.week_number }}</td><td>{{ w.date_range or '' }}</td></tr>
+        {% else %}
+        <tr><td colspan="2" class="text-muted text-center">No weeks yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<div class="card mt-3">
-    <div class="card-header">Documentation</div>
-    <div class="card-body">
-        <p class="text-muted">Download the system documentation (README) in Markdown format.</p>
-        <a href="{{ url_for('download_readme') }}" class="btn btn-outline-primary btn-sm">Download README.md</a>
-    </div>
+<div class="card card--bordered card--danger">
+  <div class="card-header"><span>Seed from Excel</span></div>
+  <div class="card-body">
+    <p class="text-muted" style="font-size:.82rem">Import Stores, Units, Wards, Sections, and Weeks from the Excel Droplist sheet.</p>
+    <form method="POST" action="{{ url_for('seed_from_excel') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="input-group">
+        <input type="file" name="file" class="form-control form-control-sm" accept=".xlsx,.xls" required>
+        <button class="btn btn-sm btn-primary">Seed Data</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<div class="card mt-3 border-danger">
-    <div class="card-header text-danger">Danger Zone</div>
-    <div class="card-body">
-        <p class="text-muted">Clear all items, reports, stores, weeks, units, wards, and sections.</p>
-        <form method="POST" action="{{ url_for('clear_data') }}" onsubmit="return confirm('Are you sure? This will delete ALL data.')">
-            <button class="btn btn-danger btn-sm">Clear All Data</button>
-        </form>
-    </div>
+<div class="card card--bordered" style="margin-top:1rem">
+  <div class="card-header" style="color:#0d9488"><span>Backup</span></div>
+  <div class="card-body">
+    <p class="text-muted" style="font-size:.82rem">Download a copy of the entire database for safekeeping.</p>
+    <a href="{{ url_for('backup_db') }}" class="btn btn-outline-success btn-sm">⬇ Download Backup (.db)</a>
+  </div>
+</div>
+
+<div class="card card--danger-left" style="margin-top:1rem">
+  <div class="card-header" style="color:var(--red)"><span>Danger Zone</span></div>
+  <div class="card-body">
+    <p class="text-muted" style="font-size:.82rem">Clear all items, reports, stores, weeks, units, wards, and sections permanently.</p>
+    <form method="POST" action="{{ url_for('clear_data') }}" onsubmit="return confirm('Are you sure? This will delete ALL data permanently.')">
+      <button class="btn btn-danger btn-sm">Clear All Data</button>
+    </form>
+  </div>
 </div>
 {% endblock %}

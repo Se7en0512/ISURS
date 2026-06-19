@@ -1,49 +1,181 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>Search Results</h3>
-<p class="text-muted">Showing results for "{{ q }}"</p>
+{% if scope == 'equipment' %}
+{% set search_title = 'Equipment Search' %}
+{% set search_subtitle = 'Search equipment by biomed, name, or location' %}
+{% set search_placeholder = 'Search equipment...' %}
+{% set search_action = url_for('search', scope='equipment') %}
+{% else %}
+{% set search_title = 'Supply Search' %}
+{% set search_subtitle = 'Search items and reports by code, name, or store' %}
+{% set search_placeholder = 'Search items or reports...' %}
+{% set search_action = url_for('search', scope='supply') %}
+{% endif %}
 
-{% if items %}
-<div class="card mb-3">
-  <div class="card-header">Items ({{ items|length }})</div>
+<div class="page-header">
+  <div>
+    <h2>{{ search_title }}</h2>
+    <p class="subtitle">{% if q %}"{{ q }}"{% else %}{{ search_subtitle }}{% endif %}</p>
+  </div>
+  <div class="no-print flex-gap-6">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+  </div>
+</div>
+
+<div class="card card--flush mb-3 no-print">
+  <div class="card-body" style="padding:.65rem 1rem">
+    <form method="GET" action="{{ url_for('search') }}" class="d-flex flex-wrap" style="gap:.5rem;align-items:center">
+      <input name="q" class="form-control form-control-sm" placeholder="{{ search_placeholder }}" style="min-width:260px;flex:1" value="{{ q }}" autofocus>
+      <input type="hidden" name="scope" value="{{ scope }}">
+      <button type="submit" class="btn btn-sm btn-primary btn-square">Search</button>
+      {% if q %}<a href="{{ url_for('search', scope=scope) }}" class="btn btn-sm btn-outline-secondary btn-square">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+{% if q %}
+<p style="font-size:.78rem;color:var(--text-muted);margin:0 0 .75rem">
+  {% if scope == 'equipment' %}
+  Found {{ equipment|length }} equipment result{% if equipment|length != 1 %}s{% endif %}
+  {% else %}
+  Found {{ items|length }} item{% if items|length != 1 %}s{% endif %} and {{ reports|length }} report{% if reports|length != 1 %}s{% endif %}
+  {% endif %}
+</p>
+
+{% if scope == 'equipment' %}
+<div class="card card--bordered mb-3">
+  <div class="card-header"><span>Equipment ({{ equipment|length }})</span></div>
   <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>Code</th><th>Name</th><th>Store</th></tr></thead>
-      <tbody>
-        {% for item in items %}
-        <tr><td>{{ item.code }}</td><td>{{ item.name }}</td><td>{{ item.store.name }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table class="table sortable">
+        <thead>
+          <tr>
+            <th>Biomed</th>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for eq in equipment %}
+          <tr>
+            <td><code>{{ eq.biomed }}</code></td>
+            <td><a href="{{ url_for('equipment_detail', id=eq.id) }}">{{ eq.name }}</a></td>
+            <td>{{ eq.location }}</td>
+            <td>
+              {% set st = eq.status %}
+              {% if st == 'WORKING' %}<span class="badge bg-success">Working</span>
+              {% elif st == 'LOANED' %}<span class="badge bg-purple">Loaned</span>
+              {% elif st == 'MAINTENANCE' %}<span class="badge" style="background:var(--amber);color:#1a1a2e">Maintenance</span>
+              {% elif st == 'MISSING' %}<span class="badge bg-danger">Missing</span>
+              {% elif st == 'CONDEMNED' %}<span class="badge bg-secondary">Condemned</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted" style="padding:2rem">No equipment matches "{{ q }}"</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card card--bordered mb-3">
+  <div class="card-header"><span>Items ({{ items|length }})</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table sortable">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Item Name</th>
+            <th>Store</th>
+            <th>Stock</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          {% set sq = item.stock_quantity or 0 %}
+          {% set cl = item.critical_level or 0 %}
+          {% if sq == 0 %}
+            {% set badge = 'bg-danger' %}{% set label = 'Out of Stock' %}
+          {% elif sq <= cl %}
+            {% set badge = 'bg-warning' %}{% set label = 'Low' %}
+          {% else %}
+            {% set badge = 'bg-success' %}{% set label = 'OK' %}
+          {% endif %}
+          <tr>
+            <td><code>{{ item.code }}</code></td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.store.name }}</td>
+            <td>{{ sq }}</td>
+            <td><span class="badge {{ badge }}" {% if badge == 'bg-warning' %}style="color:#1a1a2e"{% endif %}>{{ label }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted" style="padding:2rem">No items match "{{ q }}"</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card-header"><span>Reports ({{ reports|length }})</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle sortable">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Store</th>
+            <th>Status</th>
+            <th>Week</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reports %}
+          <tr>
+            <td><code>{{ r.item.code }}</code> {{ r.item.name }}</td>
+            <td>{{ r.item.store.name }}</td>
+            <td>
+              {% if r.status == 'Shortage' %}
+                <span class="badge-outline-danger">Shortage</span>
+              {% else %}
+                <span class="badge-outline-warning">Not Available</span>
+              {% endif %}
+            </td>
+            <td>Week {{ r.week.week_number }}</td>
+            <td class="nowrap">{{ r.created_at.strftime('%Y-%m-%d') }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted" style="padding:2rem">No reports match "{{ q }}"</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if reports %}
+      <div style="padding:.5rem .75rem;font-size:.75rem;color:var(--text-muted);text-align:right">Showing {{ reports|length }} report{% if reports|length != 1 %}s{% endif %}</div>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endif %}
-
-{% if reports %}
-<div class="card mb-3">
-  <div class="card-header">Reports ({{ reports|length }})</div>
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>Item</th><th>Store</th><th>Status</th><th>Week</th><th>Date</th></tr></thead>
-      <tbody>
-        {% for r in reports %}
-        <tr>
-          <td>{{ r.item.code }} - {{ r.item.name }}</td>
-          <td>{{ r.item.store.name }}</td>
-          <td>{% if r.status == 'Shortage' %}<span class="badge bg-danger">Shortage</span>{% else %}<span class="badge bg-warning text-dark">Not Available</span>{% endif %}</td>
-          <td>Week {{ r.week.week_number }}</td>
-          <td>{{ r.created_at.strftime('%Y-%m-%d') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+{% else %}
+{% if scope == 'equipment' %}
+<div style="display:flex;flex-direction:column;align-items:center;padding:3rem;text-align:center">
+  <div style="font-size:2.5rem;margin-bottom:.75rem;opacity:.4">🔍</div>
+  <p style="color:var(--text-muted);max-width:320px">Enter a search term above to find equipment by biomed number, name, or location.</p>
+  <div style="margin-top:.75rem;font-size:.78rem;color:var(--text-soft)">Examples: <code>MDF-001</code>, <code>Ventilator</code>, <code>ICU</code></div>
+</div>
+{% else %}
+<div style="display:flex;flex-direction:column;align-items:center;padding:3rem;text-align:center">
+  <div style="font-size:2.5rem;margin-bottom:.75rem;opacity:.4">🔍</div>
+  <p style="color:var(--text-muted);max-width:320px">Enter a search term above to find items and reports by code, name, or store.</p>
+  <div style="margin-top:.75rem;font-size:.78rem;color:var(--text-soft)">Examples: <code>EQM</code>, <code>Monitor</code>, <code>Pharmacy</code></div>
 </div>
 {% endif %}
-
-{% if not items and not reports %}
-<div class="card">
-  <div class="card-body text-center text-muted py-4">No results found for "{{ q }}"</div>
-</div>
 {% endif %}
 {% endblock %}

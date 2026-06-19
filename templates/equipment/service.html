@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Service Schedule</h2>
+    <p class="subtitle">Equipment maintenance and service due dates</p>
+  </div>
+  <div class="no-print" style="display:flex;gap:6px">
+    <a href="{{ url_for('equipment_dashboard') }}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+    <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary btn-sm">Equipment List</a>
+  </div>
+</div>
+
+{% if overdue %}
+<div class="card card--bordered card--danger" style="border-left:3px solid var(--red)">
+  <div class="card-header"><span>Overdue Service — {{ overdue|length }} equipment(s)</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table sortable">
+        <thead>
+          <tr>
+            <th>Biomed #</th>
+            <th>Equipment</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Last Service</th>
+            <th>Next Service</th>
+            <th>Overdue By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in overdue %}
+          <tr>
+            <td><code>{{ e.biomed }}</code></td>
+            <td>{{ e.name }}</td>
+            <td>{{ e.location or '—' }}</td>
+            <td>
+              {% if e.status == 'WORKING' %}<span class="badge bg-success">Working</span>
+              {% elif e.status == 'MISSING' %}<span class="badge bg-danger">Missing</span>
+              {% elif e.status == 'LOANED' %}<span class="badge bg-purple">Loaned</span>
+              {% elif e.status == 'MAINTENANCE' %}<span class="badge bg-warning" style="color:#1a1a2e">Maint</span>
+              {% else %}<span class="badge bg-secondary">{{ e.status }}</span>{% endif %}
+            </td>
+            <td>{{ e.last_service_date.strftime('%Y-%m-%d') if e.last_service_date else '—' }}</td>
+            <td style="color:var(--red);font-weight:600">{{ e.next_service_date.strftime('%Y-%m-%d') }}</td>
+            <td style="color:var(--red)">{{ (now() - e.next_service_date).days }} days</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if due_soon %}
+<div class="card card--bordered card--warn">
+  <div class="card-header"><span>Due Within 30 Days — {{ due_soon|length }} equipment(s)</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Biomed #</th>
+            <th>Equipment</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Last Service</th>
+            <th>Next Service</th>
+            <th>Days Left</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in due_soon %}
+          <tr>
+            <td><code>{{ e.biomed }}</code></td>
+            <td>{{ e.name }}</td>
+            <td>{{ e.location or '—' }}</td>
+            <td>
+              {% if e.status == 'WORKING' %}<span class="badge bg-success">Working</span>
+              {% elif e.status == 'MISSING' %}<span class="badge bg-danger">Missing</span>
+              {% elif e.status == 'LOANED' %}<span class="badge bg-purple">Loaned</span>
+              {% elif e.status == 'MAINTENANCE' %}<span class="badge bg-warning" style="color:#1a1a2e">Maint</span>
+              {% else %}<span class="badge bg-secondary">{{ e.status }}</span>{% endif %}
+            </td>
+            <td>{{ e.last_service_date.strftime('%Y-%m-%d') if e.last_service_date else '—' }}</td>
+            <td style="color:#8a6d00;font-weight:500">{{ e.next_service_date.strftime('%Y-%m-%d') }}</td>
+            <td style="color:#8a6d00">{{ (e.next_service_date - now()).days }} days</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card card--flush">
+  <div class="card-header"><span>Upcoming Service (beyond 30 days)</span></div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle">
+        <thead>
+          <tr>
+            <th>Biomed #</th>
+            <th>Equipment</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Last Service</th>
+            <th>Next Service</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in upcoming %}
+          <tr>
+            <td><code>{{ e.biomed }}</code></td>
+            <td>{{ e.name }}</td>
+            <td>{{ e.location or '—' }}</td>
+            <td>
+              {% if e.status == 'WORKING' %}<span class="badge bg-success">Working</span>
+              {% elif e.status == 'MISSING' %}<span class="badge bg-danger">Missing</span>
+              {% elif e.status == 'LOANED' %}<span class="badge bg-purple">Loaned</span>
+              {% elif e.status == 'MAINTENANCE' %}<span class="badge bg-warning" style="color:#1a1a2e">Maint</span>
+              {% else %}<span class="badge bg-secondary">{{ e.status }}</span>{% endif %}
+            </td>
+            <td>{{ e.last_service_date.strftime('%Y-%m-%d') if e.last_service_date else '—' }}</td>
+            <td>{{ e.next_service_date.strftime('%Y-%m-%d') }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted" style="padding:3rem">
+            <div class="empty-state"><div class="empty-icon">📅</div><div>No upcoming service schedules</div></div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
