@@ -499,8 +499,9 @@ def dashboard():
                            sel_week=week_id,
                            sel_month=month,
                            sel_year=year,
-                           pending_approvals=pending_approvals,
-                           current_user=current_user)
+                            now=datetime.now(timezone.utc),
+                            pending_approvals=pending_approvals,
+                            current_user=current_user)
 
 
 @app.route('/api/dashboard')

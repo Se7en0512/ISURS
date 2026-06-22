@@ -110,7 +110,7 @@ function updateDashboard(data) {
   document.getElementById('statOk').textContent = data.ok_count;
   document.getElementById('statLow').textContent = data.low_count;
   document.getElementById('statCritical').textContent = data.critical_count;
-  document.querySelectorAll('.stat-num').forEach(function(el) { el.classList.remove('stat-pulse'); void el.offsetWidth; el.classList.add('stat-pulse'); });
+  document.querySelectorAll('.stat-modern-num').forEach(function(el) { el.classList.remove('stat-pulse'); void el.offsetWidth; el.classList.add('stat-pulse'); });
 
   if (supplyChart) {
     supplyChart.data.datasets[0].data = [data.ok_count, data.low_count, data.critical_count];
@@ -289,7 +289,7 @@ document.getElementById('clearFilters').addEventListener('click', function(e) {
 });
 
 function showLoading(show) {
-  var els = document.querySelectorAll('.stat-num');
+  var els = document.querySelectorAll('.stat-modern-num');
   els.forEach(function(el) {
     if (show) {
       if (!el.getAttribute('data-val')) el.setAttribute('data-val', el.textContent);
@@ -312,7 +312,6 @@ function showLoading(show) {
     }
   });
 }
-
 document.addEventListener('DOMContentLoaded', function() {
   showLoading(true);
   try {
