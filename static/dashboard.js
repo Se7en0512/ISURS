@@ -110,7 +110,29 @@ function updateDashboard(data) {
   document.getElementById('statOk').textContent = data.ok_count;
   document.getElementById('statLow').textContent = data.low_count;
   document.getElementById('statCritical').textContent = data.critical_count;
+  document.getElementById('statTotalReports').textContent = data.total_reports;
+  document.getElementById('statShortage').textContent = data.shortage_count;
+  document.getElementById('statUna').textContent = data.una_count;
   document.querySelectorAll('.stat-modern-num').forEach(function(el) { el.classList.remove('stat-pulse'); void el.offsetWidth; el.classList.add('stat-pulse'); });
+
+  var stTrend = document.getElementById('statShortageTrend');
+  var stIcon = document.getElementById('statShortageTrendIcon');
+  if (stTrend) {
+    var diff = data.shortage_trend;
+    stTrend.textContent = (diff > 0 ? '+' : '') + diff;
+    stTrend.style.color = diff > 0 ? 'var(--red)' : diff < 0 ? 'var(--green)' : 'var(--text-muted)';
+    stIcon.textContent = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+    stIcon.style.color = diff > 0 ? 'var(--red)' : diff < 0 ? 'var(--green)' : 'var(--text-muted)';
+  }
+  var uaTrend = document.getElementById('statUnaTrend');
+  var uaIcon = document.getElementById('statUnaTrendIcon');
+  if (uaTrend) {
+    var diff2 = data.una_trend;
+    uaTrend.textContent = (diff2 > 0 ? '+' : '') + diff2;
+    uaTrend.style.color = diff2 > 0 ? 'var(--red)' : diff2 < 0 ? 'var(--green)' : 'var(--text-muted)';
+    uaIcon.textContent = diff2 > 0 ? '▲' : diff2 < 0 ? '▼' : '—';
+    uaIcon.style.color = diff2 > 0 ? 'var(--red)' : diff2 < 0 ? 'var(--green)' : 'var(--text-muted)';
+  }
 
   if (supplyChart) {
     supplyChart.data.datasets[0].data = [data.ok_count, data.low_count, data.critical_count];
@@ -147,6 +169,17 @@ function updateDashboard(data) {
     });
     if (!data.recent.length) h2 = '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem">No reports yet</td></tr>';
     rt.innerHTML = h2;
+  }
+
+  var tt = document.querySelector('#topItemsTable tbody');
+  if (tt && data.top_items) {
+    var h3 = '';
+    data.top_items.forEach(function(i) {
+      var badge = i.count > 10 ? 'bg-danger text-white' : i.count > 5 ? 'bg-warning' : 'bg-secondary text-white';
+      h3 += safeHTML`<tr><td><code>${i.code}</code></td><td>${i.name}</td><td>${i.store}</td><td style="text-align:center"><span class="badge ${badge}">${i.count}</span></td><td></td></tr>`;
+    });
+    if (!data.top_items.length) h3 = '<tr><td colspan="5" class="text-center text-muted" style="padding:2rem">No report data yet</td></tr>';
+    tt.innerHTML = h3;
   }
 }
 

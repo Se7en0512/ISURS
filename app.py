@@ -493,6 +493,11 @@ def dashboard():
     crit_total = low_count + critical_count
     noncrit_total = ok_count
 
+    top_items_data = db.session.query(
+        Item.id, Item.code, Item.name, Store.name, func.count(Report.id)
+    ).select_from(Report).join(Item).join(Store).group_by(Item.id).order_by(func.count(Report.id).desc()).limit(5).all()
+    store_count = Store.query.count()
+
     return render_template('index.html',
                            total_items=total_items,
                            total_reports=total_reports,
@@ -518,7 +523,9 @@ def dashboard():
                            sel_year=year,
                             now=datetime.now(timezone.utc),
                             pending_approvals=pending_approvals,
-                            current_user=current_user)
+                            current_user=current_user,
+                            store_count=store_count,
+                            top_items=top_items_data)
 
 
 @app.route('/api/dashboard')
@@ -589,6 +596,19 @@ def api_dashboard():
             'date': r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '',
         })
 
+    top_items_q = _apply_filters(db.session.query(
+        Item.id, Item.code, Item.name, Store.name, func.count(Report.id)
+    ).select_from(Report).join(Item).join(Store), **fkw).group_by(Item.id).order_by(func.count(Report.id).desc()).limit(5).all()
+    top_items = [{'id': i[0], 'code': i[1], 'name': i[2], 'store': i[3], 'count': i[4]} for i in top_items_q]
+
+    prev_month = (datetime.now(timezone.utc).replace(day=1) - timedelta(days=1)).month
+    prev_year = (datetime.now(timezone.utc).replace(day=1) - timedelta(days=1)).year
+    prev_fkw = dict(week_id=week_id, month=prev_month, year=prev_year, from_date=None, to_date=None)
+    current_shortage = shortage_count
+    prev_shortage = _filter_reports(**prev_fkw).filter_by(status='Shortage').count()
+    current_una = una_count
+    prev_una = _filter_reports(**prev_fkw).filter_by(status='Not available').count()
+
     crit_total = low_count + critical_count
     noncrit_total = ok_count
 
@@ -602,6 +622,9 @@ def api_dashboard():
         'ok_count': ok_count,
         'low_count': low_count,
         'critical_count': critical_count,
+        'shortage_trend': shortage_count - prev_shortage,
+        'una_trend': una_count - prev_una,
+        'top_items': top_items,
         'critical_items': [{'id': i.id, 'code': i.code, 'name': i.name, 'stock': i.stock_quantity, 'critical': i.critical_level, 'store': i.store.name} for i in critical_items],
         'out_of_stock': [{'id': i.id, 'code': i.code, 'name': i.name, 'stock': i.stock_quantity, 'critical': i.critical_level, 'store': i.store.name} for i in out_of_stock],
         'shortage_by_store': [{'store': s[0], 'count': s[1]} for s in shortage_by_store],

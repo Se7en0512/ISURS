@@ -38,18 +38,18 @@
       <div class="stat-modern-label">Out of Stock</div>
     </div>
   </div>
-  <div class="stat-modern stat-modern--amber">
-    <div class="stat-modern-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
-    <div class="stat-modern-body">
-      <div class="stat-modern-num" id="statCritTotal">{{ crit_total }}</div>
-      <div class="stat-modern-label">Critical Items</div>
-    </div>
-  </div>
   <div class="stat-modern stat-modern--orange">
     <div class="stat-modern-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
     <div class="stat-modern-body">
       <div class="stat-modern-num" id="statLow">{{ low_count }}</div>
       <div class="stat-modern-label">Low Stock</div>
+    </div>
+  </div>
+  <div class="stat-modern stat-modern--green">
+    <div class="stat-modern-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div class="stat-modern-body">
+      <div class="stat-modern-num" id="statOk">{{ ok_count }}</div>
+      <div class="stat-modern-label">In Stock</div>
     </div>
   </div>
   <div class="stat-modern stat-modern--navy">
@@ -62,15 +62,66 @@
   <div class="stat-modern stat-modern--slate">
     <div class="stat-modern-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
     <div class="stat-modern-body">
+      <div class="stat-modern-num" id="statTotalReports">{{ total_reports }}</div>
+      <div class="stat-modern-label">Total Reports</div>
+    </div>
+  </div>
+  <div class="stat-modern stat-modern--amber">
+    <div class="stat-modern-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+    <div class="stat-modern-body">
+      <div class="stat-modern-num" id="statShortage">{{ shortage_count }}</div>
+      <div class="stat-modern-label">Shortage Reports</div>
+    </div>
+  </div>
+</div>
+
+<div class="stats-row" style="margin-top:-0.75rem">
+  <div class="stat-modern stat-modern--red" style="border-left-color:var(--text-muted)">
+    <div class="stat-modern-icon" style="background:var(--red-dim);color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+    <div class="stat-modern-body">
+      <div class="stat-modern-num" id="statUna">{{ una_count }}</div>
+      <div class="stat-modern-label">Not Available</div>
+    </div>
+  </div>
+  <div class="stat-modern" style="border-left-color:var(--teal)">
+    <div class="stat-modern-icon" style="background:var(--teal-dim);color:var(--teal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    <div class="stat-modern-body">
+      <div class="stat-modern-label" style="font-size:.7rem;text-transform:none;letter-spacing:0">Shortage vs last month</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:1px">
+        <span class="stat-modern-num" id="statShortageTrend" style="font-size:1.1rem">—</span>
+        <span id="statShortageTrendIcon" style="font-size:.85rem"></span>
+      </div>
+    </div>
+  </div>
+  <div class="stat-modern" style="border-left-color:var(--teal)">
+    <div class="stat-modern-icon" style="background:var(--teal-dim);color:var(--teal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    <div class="stat-modern-body">
+      <div class="stat-modern-label" style="font-size:.7rem;text-transform:none;letter-spacing:0">Not Available vs last month</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:1px">
+        <span class="stat-modern-num" id="statUnaTrend" style="font-size:1.1rem">—</span>
+        <span id="statUnaTrendIcon" style="font-size:.85rem"></span>
+      </div>
+    </div>
+  </div>
+  <div class="stat-modern" style="border-left-color:{% if crit_total > 0 %}var(--red){% else %}var(--green){% endif %}">
+    <div class="stat-modern-icon" style="background:var(--amber-dim);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+    <div class="stat-modern-body">
+      <div class="stat-modern-num" id="statCritTotal">{{ crit_total }}</div>
+      <div class="stat-modern-label">Critical Items</div>
+    </div>
+  </div>
+  <div class="stat-modern" style="border-left-color:var(--green)">
+    <div class="stat-modern-icon" style="background:var(--green-dim);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div class="stat-modern-body">
       <div class="stat-modern-num" id="statNoncritTotal">{{ noncrit_total }}</div>
       <div class="stat-modern-label">Non-Critical</div>
     </div>
   </div>
-  <div class="stat-modern stat-modern--green">
-    <div class="stat-modern-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+  <div class="stat-modern" style="border-left-color:var(--text-muted)">
+    <div class="stat-modern-icon" style="background:#f0f1f5;color:var(--text-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
     <div class="stat-modern-body">
-      <div class="stat-modern-num" id="statOk">{{ ok_count }}</div>
-      <div class="stat-modern-label">In Stock (OK)</div>
+      <div class="stat-modern-num" id="statStoreCount" style="font-size:1.2rem">{{ store_count }}</div>
+      <div class="stat-modern-label">Stores</div>
     </div>
   </div>
 </div>
@@ -183,6 +234,41 @@
     <strong>Real-Time</strong> — Refreshes every <span id="pollIntervalLabel">10</span> seconds
   </span>
   <span class="rt-label">Connected</span>
+</div>
+
+<div class="card card--bordered" style="margin-bottom:1.25rem">
+  <div class="card-header">
+    <span>Most Reported Items</span>
+    <a href="{{ url_for('shortage') }}" class="btn btn-sm btn-glove btn-outline-primary">View All</a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-wrap">
+      <table class="table table--subtle" id="topItemsTable">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Item Name</th>
+            <th>Store</th>
+            <th style="text-align:center">Reports</th>
+            <th style="width:30px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in top_items %}
+          <tr>
+            <td><code>{{ item[1] }}</code></td>
+            <td>{{ item[2] }}</td>
+            <td>{{ item[3] }}</td>
+            <td style="text-align:center"><span class="badge {% if item[4] > 10 %}bg-danger{% elif item[4] > 5 %}bg-warning{% else %}bg-secondary{% endif %}">{{ item[4] }}</span></td>
+            <td><form method="POST" action="{{ url_for('api_report_quick') }}" style="display:inline"><input type="hidden" name="item_id" value="{{ item[0] }}"><button type="submit" class="btn btn-sm btn-outline-warning btn-square" title="Report shortage">!</button></form></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted" style="padding:2rem">No report data yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <div class="card card--danger-left" style="margin-bottom:1.25rem">
