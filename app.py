@@ -1,11 +1,12 @@
-import os, shutil, json
+import os, shutil, json, uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 import logging
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, session, abort, g
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, session, abort, g, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, extract, case
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -76,6 +77,12 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
 
+# ── Theme image upload ──
+THEME_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'themes')
+os.makedirs(THEME_UPLOAD_DIR, exist_ok=True)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+ALLOWED_THEME_EXT = {'.jpg', '.jpeg', '.png', '.webp'}
+
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -83,10 +90,20 @@ limiter = Limiter(
     storage_uri='memory://',
 )
 
-# ── Inject CSRF token into ALL Jinja2 templates ──
+# ── Inject CSRF token + theme image into ALL Jinja2 templates ──
 @app.context_processor
-def inject_csrf_token():
-    return dict(csrf_token=generate_csrf())
+def inject_globals():
+    ctx = dict(csrf_token=generate_csrf(), theme_image=None)
+    if 'user_id' in session:
+        user = db.session.get(Staff, session['user_id'])
+        if user and user.preferences:
+            try:
+                prefs = json.loads(user.preferences)
+                if prefs.get('theme_image'):
+                    ctx['theme_image'] = url_for('serve_theme_image', filename=prefs['theme_image'])
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return ctx
 
 # ── Enable SQLite WAL mode on startup ──
 with app.app_context():
@@ -762,7 +779,63 @@ def preferences():
     except (json.JSONDecodeError, TypeError):
         current_prefs = {}
     stores = Store.query.order_by(Store.name).all()
-    return render_template('preferences.html', user=user, units=units, wards=wards, stores=stores, prefs=current_prefs)
+    theme_img = None
+    try:
+        prefs = json.loads(user.preferences) if user.preferences else {}
+    except (json.JSONDecodeError, TypeError):
+        prefs = {}
+    if prefs.get('theme_image'):
+        theme_img = prefs['theme_image']
+    return render_template('preferences.html', user=user, units=units, wards=wards, stores=stores, prefs=current_prefs, theme_img=theme_img)
+
+
+@app.route('/preferences/upload-theme', methods=['POST'])
+@login_required
+def upload_theme():
+    user = db.session.get(Staff, session['user_id'])
+    file = request.files.get('theme_image')
+    if not file or not file.filename:
+        flash('No file selected', 'danger')
+        return redirect(url_for('preferences'))
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_THEME_EXT:
+        flash('Allowed formats: JPG, PNG, WebP', 'danger')
+        return redirect(url_for('preferences'))
+    filename = f'user_{user.id}_{uuid.uuid4().hex[:12]}{ext}'
+    file.save(os.path.join(THEME_UPLOAD_DIR, filename))
+    try:
+        prefs = json.loads(user.preferences) if user.preferences else {}
+    except (json.JSONDecodeError, TypeError):
+        prefs = {}
+    old = prefs.get('theme_image')
+    if old:
+        old_path = os.path.join(THEME_UPLOAD_DIR, os.path.basename(old))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+    prefs['theme_image'] = filename
+    user.preferences = json.dumps(prefs)
+    db.session.commit()
+    flash('Theme image uploaded', 'success')
+    return redirect(url_for('preferences'))
+
+
+@app.route('/preferences/remove-theme', methods=['POST'])
+@login_required
+def remove_theme():
+    user = db.session.get(Staff, session['user_id'])
+    try:
+        prefs = json.loads(user.preferences) if user.preferences else {}
+    except (json.JSONDecodeError, TypeError):
+        prefs = {}
+    old = prefs.pop('theme_image', None)
+    if old:
+        old_path = os.path.join(THEME_UPLOAD_DIR, os.path.basename(old))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+    user.preferences = json.dumps(prefs)
+    db.session.commit()
+    flash('Theme image removed', 'success')
+    return redirect(url_for('preferences'))
 
 
 @app.route('/items')
@@ -2631,6 +2704,11 @@ def backup_db():
     return send_file(buf, as_attachment=True,
         download_name=f'PULSE_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db',
         mimetype='application/octet-stream')
+
+
+@app.route('/uploads/themes/<filename>')
+def serve_theme_image(filename):
+    return send_from_directory(THEME_UPLOAD_DIR, filename)
 
 
 if __name__ == '__main__':

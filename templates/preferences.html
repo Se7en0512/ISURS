@@ -71,6 +71,37 @@
       <label for="autoRedirect" style="font-size:.82rem;margin:0">Auto-redirect to report page after logging in</label>
     </div>
 
+    <hr style="border-color:var(--border-soft);margin:1rem 0">
+
+    <h5 style="font-size:.9rem;font-weight:600;margin:0 0 1rem 0;font-family:var(--font-serif)">Custom Background</h5>
+
+    <div style="margin-bottom:.85rem">
+      <label class="form-label">Upload Background Image</label>
+      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+        <form method="POST" action="{{ url_for('upload_theme') }}" enctype="multipart/form-data" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="file" name="theme_image" accept="image/jpeg,image/png,image/webp" class="form-control form-control-glove" style="width:auto;max-width:220px;font-size:.8rem" required>
+          <button type="submit" class="btn btn-sm btn-glove btn-primary btn-square">Upload</button>
+        </form>
+        {% if theme_img %}
+        <form method="POST" action="{{ url_for('remove_theme') }}" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-glove btn-outline-danger btn-square">Remove</button>
+        </form>
+        {% endif %}
+      </div>
+      <span style="font-size:.7rem;color:var(--text-muted);display:block;margin-top:4px">Max 5MB. Allowed: JPG, PNG, WebP. Image will tile as background with a dark overlay for readability.</span>
+    </div>
+
+    {% if theme_img %}
+    <div style="margin-bottom:.5rem">
+      <label class="form-label">Preview</label>
+      <div style="border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;max-width:300px;max-height:160px">
+        <img src="{{ url_for('serve_theme_image', filename=theme_img) }}" style="width:100%;height:120px;object-fit:cover;display:block">
+      </div>
+    </div>
+    {% endif %}
+
     <div class="confirm-actions" style="margin-top:1rem">
       <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary btn-square btn-glove">Cancel</a>
       <button type="submit" class="btn btn-sm btn-primary btn-square btn-glove">Save Preferences</button>

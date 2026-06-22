@@ -189,6 +189,35 @@
 [data-theme="mono"] .page-header h2 { color: var(--text); }
 [data-theme="mono"] * { --radius: 2px; --radius-sm: 1px; --radius-lg: 4px; }
 
+/* ── Custom Background Image ── */
+body.has-theme-bg {
+  background-image: var(--theme-bg-url);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+body.has-theme-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 0;
+  pointer-events: none;
+}
+body.has-theme-bg .sidebar,
+body.has-theme-bg .main-content {
+  position: relative;
+  z-index: 1;
+}
+body.has-theme-bg .main-content {
+  background: rgba(255,255,255,.06);
+  backdrop-filter: blur(2px);
+}
+[data-theme="dark"] body.has-theme-bg::before {
+  background: rgba(0,0,0,.7);
+}
+
 *,
 *::before,
 *::after { box-sizing: border-box; }

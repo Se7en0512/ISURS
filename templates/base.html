@@ -11,7 +11,7 @@
   <script src="{{ url_for('static', filename='lib/chart.umd.min.js') }}"></script>
   <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
-<body>
+<body{% if theme_image %} class="has-theme-bg" style="--theme-bg-url: url('{{ theme_image }}')"{% endif %}>
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Confirm Modal -->
