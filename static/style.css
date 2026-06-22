@@ -104,6 +104,91 @@
   color: #b0b8cc;
 }
 
+/* ── Ocean Theme ── */
+[data-theme="ocean"] {
+  --navy: #0a2844;
+  --navy-light: #0e3d66;
+  --navy-50: #e6edf8;
+  --teal: #0b7e8a;
+  --teal-dim: #cdf0f5;
+  --amber: #c8921e;
+  --amber-dim: #f7edd0;
+  --red: #b91c1c;
+  --red-dim: #fee2e2;
+  --green: #12805c;
+  --green-dim: #d4f0e6;
+  --bg: #e8eef7;
+  --card: #ffffff;
+  --card-alt: #f4f8fd;
+  --text: #0f1e33;
+  --text-soft: #3d5775;
+  --text-muted: #6a85a2;
+  --border: #c5d5e8;
+  --border-soft: #dce6f2;
+  --shadow-sm: 0 1px 3px rgba(10,40,68,.06);
+  --shadow: 0 2px 8px rgba(10,40,68,.08);
+  --shadow-lg: 0 4px 20px rgba(10,40,68,.1);
+}
+[data-theme="ocean"] .sidebar { background: #06203a; }
+[data-theme="ocean"] .page-header h2 { color: var(--navy); }
+
+/* ── Forest Theme ── */
+[data-theme="forest"] {
+  --navy: #1a3a2a;
+  --navy-light: #2a5238;
+  --navy-50: #eaf4ee;
+  --teal: #1f7a5a;
+  --teal-dim: #cef0e2;
+  --amber: #b8922a;
+  --amber-dim: #f5edd0;
+  --red: #b91c1c;
+  --red-dim: #fee2e2;
+  --green: #1a8a4a;
+  --green-dim: #d8f0e2;
+  --bg: #eef5ed;
+  --card: #ffffff;
+  --card-alt: #f6faf5;
+  --text: #142618;
+  --text-soft: #3d5c47;
+  --text-muted: #6b8a76;
+  --border: #c8ddce;
+  --border-soft: #e0ede4;
+  --shadow-sm: 0 1px 3px rgba(26,58,42,.06);
+  --shadow: 0 2px 8px rgba(26,58,42,.08);
+  --shadow-lg: 0 4px 20px rgba(26,58,42,.1);
+}
+[data-theme="forest"] .sidebar { background: #0f2a1a; }
+[data-theme="forest"] .page-header h2 { color: var(--navy); }
+
+/* ── Mono (High Contrast) Theme ── */
+[data-theme="mono"] {
+  --navy: #1a1a1a;
+  --navy-light: #2a2a2a;
+  --navy-50: #e8e8e8;
+  --teal: #3a3a3a;
+  --teal-dim: #e0e0e0;
+  --amber: #8a6a00;
+  --amber-dim: #f5f0d0;
+  --red: #cc0000;
+  --red-dim: #fce0e0;
+  --green: #1a7a2a;
+  --green-dim: #e0f2e2;
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --card-alt: #fafafa;
+  --text: #0a0a0a;
+  --text-soft: #3a3a3a;
+  --text-muted: #6a6a6a;
+  --border: #c0c0c0;
+  --border-soft: #e0e0e0;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+  --shadow: 0 2px 8px rgba(0,0,0,.1);
+  --shadow-lg: 0 4px 20px rgba(0,0,0,.12);
+}
+[data-theme="mono"] .sidebar { background: #0a0a0a; }
+[data-theme="mono"] .page-header h2 { color: var(--text); }
+[data-theme="mono"] * { --radius: 2px; --radius-sm: 1px; --radius-lg: 4px; }
+
 *,
 *::before,
 *::after { box-sizing: border-box; }

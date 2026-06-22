@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ 'dark' if request.cookies.get('theme') == 'dark' else 'light' }}">
+<html lang="en" data-theme="{{ request.cookies.get('theme') or 'light' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -156,7 +156,7 @@
         <span class="topbar-brand">PULSE</span>
       </div>
       <div class="topbar-right">
-        <button id="themeToggle" class="btn btn-sm btn-glove theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">☽</button>
+        <button id="themeToggle" class="btn btn-sm btn-glove theme-toggle" onclick="toggleTheme()" title="Switch theme">☽</button>
         <div class="alert-bell-wrap" id="alertBellWrap" style="display:none">
           <button class="btn btn-sm btn-glove alert-bell" onclick="toggleAlerts()" title="Alerts" id="alertBellBtn">
             <svg class="ni" style="width:18px;height:18px"><use href="#i-bell"/></svg>
@@ -427,21 +427,31 @@ function doConfirm() {
   hideConfirm();
 }
 
-// ── Dark mode toggle ──
+// ── Theme cycling ──
+var THEMES = ['light', 'dark', 'ocean', 'forest', 'mono'];
+var THEME_ICONS = { light: '☀', dark: '☽', ocean: '🌊', forest: '🌿', mono: '◇' };
+var THEME_LABELS = { light: 'Light', dark: 'Dark', ocean: 'Ocean', forest: 'Forest', mono: 'Mono' };
 function toggleTheme() {
   var html = document.documentElement;
-  var current = html.getAttribute('data-theme');
-  var next = current === 'dark' ? 'light' : 'dark';
+  var current = html.getAttribute('data-theme') || 'light';
+  var idx = THEMES.indexOf(current);
+  var next = THEMES[(idx + 1) % THEMES.length];
   html.setAttribute('data-theme', next);
   document.cookie = 'theme=' + next + ';path=/;max-age=31536000';
-  document.getElementById('themeToggle').textContent = next === 'dark' ? '☀' : '☽';
+  var btn = document.getElementById('themeToggle');
+  btn.textContent = THEME_ICONS[next] || '☀';
+  btn.title = 'Theme: ' + (THEME_LABELS[next] || next);
 }
 (function() {
   var theme = document.cookie.split('; ').find(function(r) { return r.startsWith('theme='); });
   if (theme) {
     var v = theme.split('=')[1];
-    document.documentElement.setAttribute('data-theme', v);
-    if (v === 'dark') document.getElementById('themeToggle').textContent = '☀';
+    if (THEMES.indexOf(v) !== -1) {
+      document.documentElement.setAttribute('data-theme', v);
+      var btn = document.getElementById('themeToggle');
+      btn.textContent = THEME_ICONS[v] || '☀';
+      btn.title = 'Theme: ' + (THEME_LABELS[v] || v);
+    }
   }
 })();
 
@@ -638,10 +648,15 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
   var html = document.documentElement;
   var cookieTheme = (document.cookie.split('; ').find(function(r) { return r.startsWith('theme='); }) || '').split('=')[1];
-  if (!cookieTheme) {
+  if (!cookieTheme || THEMES.indexOf(cookieTheme) === -1) {
     var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    if (prefersDark) document.getElementById('themeToggle').textContent = '☀';
+    var fallback = prefersDark ? 'dark' : 'light';
+    html.setAttribute('data-theme', fallback);
+  } else {
+    html.setAttribute('data-theme', cookieTheme);
+    var btn = document.getElementById('themeToggle');
+    btn.textContent = THEME_ICONS[cookieTheme] || '☀';
+    btn.title = 'Theme: ' + (THEME_LABELS[cookieTheme] || cookieTheme);
   }
 })();
 </script>

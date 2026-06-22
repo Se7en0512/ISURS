@@ -748,8 +748,14 @@ def preferences():
         prefs['auto_redirect'] = 'auto_redirect' in request.form
         user.preferences = json.dumps(prefs)
         db.session.commit()
+        if pref_theme != 'auto':
+            resp = redirect(url_for('preferences'))
+            resp.set_cookie('theme', pref_theme, max_age=31536000, path='/')
+        else:
+            resp = redirect(url_for('preferences'))
+            resp.delete_cookie('theme', path='/')
         flash('Preferences saved', 'success')
-        return redirect(url_for('preferences'))
+        return resp
 
     try:
         current_prefs = json.loads(user.preferences) if user.preferences else {}

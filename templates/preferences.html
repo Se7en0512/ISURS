@@ -48,11 +48,17 @@
 
     <div style="margin-bottom:.85rem">
       <label class="form-label">Default Theme</label>
-      <select name="pref_theme" class="form-select form-select-glove">
-        <option value="auto" {% if prefs.get('theme') == 'auto' %}selected{% endif %}>System Default</option>
-        <option value="light" {% if prefs.get('theme') == 'light' %}selected{% endif %}>Light</option>
-        <option value="dark" {% if prefs.get('theme') == 'dark' %}selected{% endif %}>Dark</option>
-      </select>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+        <select name="pref_theme" id="prefTheme" class="form-select form-select-glove" onchange="document.documentElement.setAttribute('data-theme',this.value==='auto'?'light':this.value)">
+          <option value="auto" {% if prefs.get('theme') == 'auto' %}selected{% endif %}>System Default</option>
+          <option value="light" {% if prefs.get('theme') == 'light' %}selected{% endif %}>☀ Light</option>
+          <option value="dark" {% if prefs.get('theme') == 'dark' %}selected{% endif %}>☽ Dark</option>
+          <option value="ocean" {% if prefs.get('theme') == 'ocean' %}selected{% endif %}>🌊 Ocean</option>
+          <option value="forest" {% if prefs.get('theme') == 'forest' %}selected{% endif %}>🌿 Forest</option>
+          <option value="mono" {% if prefs.get('theme') == 'mono' %}selected{% endif %}>◆ High Contrast</option>
+        </select>
+        <span style="font-size:.7rem;color:var(--text-muted)">Preview changes live as you select</span>
+      </div>
     </div>
 
     <div style="margin-bottom:.85rem">
